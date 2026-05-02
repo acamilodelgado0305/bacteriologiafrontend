@@ -46,13 +46,11 @@ const Registro = () => {
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Nombre"
-                placeholder="Andrés"
                 error={errors.nombre?.message}
                 {...register('nombre', { required: 'Requerido' })}
               />
               <Input
                 label="Apellido"
-                placeholder="Delgado"
                 error={errors.apellido?.message}
                 {...register('apellido', { required: 'Requerido' })}
               />
@@ -61,7 +59,6 @@ const Registro = () => {
             <Input
               label="Correo electrónico"
               type="email"
-              placeholder="usuario@unipamplona.edu.co"
               error={errors.email?.message}
               {...register('email', {
                 required: 'Requerido',
@@ -84,7 +81,6 @@ const Registro = () => {
             <Input
               label="Contraseña"
               type="password"
-              placeholder="Mínimo 8 caracteres"
               error={errors.password?.message}
               {...register('password', {
                 required: 'Requerida',
@@ -95,7 +91,6 @@ const Registro = () => {
             <Input
               label="Confirmar contraseña"
               type="password"
-              placeholder="Repetir contraseña"
               error={errors.confirmar_password?.message}
               {...register('confirmar_password', {
                 required: 'Requerida',

@@ -175,11 +175,10 @@ const Bacteriologos = () => {
 
           <Input
             label="Número de documento"
-            placeholder="12345678 (para generar contraseña)"
             {...register('documento')}
           />
 
-          <Input label="Correo electrónico *" type="email" placeholder="bacteriologo@laboratorio.com"
+          <Input label="Correo electrónico *" type="email"
             error={errors.email?.message}
             {...register('email', {
               required: 'Requerido',

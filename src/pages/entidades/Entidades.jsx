@@ -94,18 +94,16 @@ const Entidades = () => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
             label="Nombre de la entidad *"
-            placeholder="Hospital San Juan de Dios"
             error={errors.nombre?.message}
             {...register('nombre', { required: 'Requerido' })}
           />
           <Input
             label="Dirección"
-            placeholder="Calle 5 # 10-20"
             {...register('direccion')}
           />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Ciudad" placeholder="Pamplona" {...register('ciudad')} />
-            <Input label="Departamento" placeholder="Norte de Santander" {...register('departamento')} />
+            <Input label="Ciudad" {...register('ciudad')} />
+            <Input label="Departamento" {...register('departamento')} />
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" className="flex-1" onClick={() => { setModalAbierto(false); reset(); }}>

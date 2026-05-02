@@ -143,7 +143,6 @@ const EntidadDetalle = () => {
         <form onSubmit={handleSubmit(onSubmitExamen)} className="space-y-4">
           <Input
             label="Nombre del examen *"
-            placeholder="Hemograma completo"
             error={errors.nombre?.message}
             {...register('nombre', { required: 'Requerido' })}
           />

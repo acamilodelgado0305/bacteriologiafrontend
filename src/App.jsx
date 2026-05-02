@@ -14,7 +14,6 @@ import Bacteriologos from './pages/bacteriologos/Bacteriologos';
 import RegistroDiario from './pages/registro/RegistroDiario';
 import Firmas from './pages/firmas/Firmas';
 import Reportes from './pages/reportes/Reportes';
-import Placeholder from './pages/Placeholder';
 
 const App = () => (
   <AuthProvider>

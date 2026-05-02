@@ -297,7 +297,7 @@ export default function RegistroDiario() {
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
               disabled={!editable}
-              placeholder="Anota cualquier novedad, dificultad o comentario del día..."
+              placeholder=""
               className="input-field resize-none disabled:bg-gray-50 disabled:text-gray-400"
             />
           </div>

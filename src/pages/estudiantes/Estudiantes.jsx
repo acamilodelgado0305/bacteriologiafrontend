@@ -96,16 +96,16 @@ const FormularioEstudiante = ({ onSubmit, guardando, onCerrar, entidades, docent
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Input label="Nombre *" placeholder="Andrés"
+        <Input label="Nombre *"
           error={errors.nombre?.message}
           {...register('nombre', { required: 'Requerido' })} />
-        <Input label="Apellido *" placeholder="Delgado"
+        <Input label="Apellido *"
           error={errors.apellido?.message}
           {...register('apellido', { required: 'Requerido' })} />
       </div>
 
       {!modoEdicion && (
-        <Input label="Número de documento *" placeholder="1090123456"
+        <Input label="Número de documento *"
           error={errors.numeroDocumento?.message}
           {...register('numeroDocumento', { required: 'Requerido' })} />
       )}
@@ -161,7 +161,7 @@ const FormularioEstudiante = ({ onSubmit, guardando, onCerrar, entidades, docent
         <div className="border-t border-gray-100 pt-4">
           <p className="text-sm font-medium text-gray-700 mb-3">Credenciales de acceso</p>
           <div className="space-y-3">
-            <Input label="Correo electrónico *" type="email" placeholder="estudiante@correo.com"
+            <Input label="Correo electrónico *" type="email"
               error={errors.email?.message}
               {...register('email', {
                 required: 'Requerido',

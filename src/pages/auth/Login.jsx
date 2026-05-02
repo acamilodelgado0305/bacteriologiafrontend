@@ -45,7 +45,6 @@ const Login = () => {
             <Input
               label="Correo electrónico"
               type="email"
-              placeholder="usuario@unipamplona.edu.co"
               autoComplete="email"
               error={errors.email?.message}
               {...register('email', {
@@ -57,7 +56,6 @@ const Login = () => {
             <Input
               label="Contraseña"
               type="password"
-              placeholder="••••••••"
               autoComplete="current-password"
               error={errors.password?.message}
               {...register('password', { required: 'La contraseña es requerida' })}
