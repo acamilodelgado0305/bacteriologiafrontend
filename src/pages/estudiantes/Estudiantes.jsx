@@ -3,7 +3,6 @@ import { useForm, useWatch } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { listarEstudiantesApi, crearEstudianteApi, actualizarEstudianteApi, eliminarEstudianteApi } from '../../services/estudianteService';
 import { listarEntidadesApi } from '../../services/entidadService';
-import { listarUsuariosApi } from '../../services/userService';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
@@ -86,7 +85,7 @@ const ModalConfirmar = ({ abierto, estudiante, onConfirmar, onCerrar, cargando }
 );
 
 // Formulario compartido por crear y editar
-const FormularioEstudiante = ({ onSubmit, guardando, onCerrar, entidades, docentes, bacteriologos, modoEdicion, register, handleSubmit, errors, control, setValue, verPassword, setVerPassword }) => {
+const FormularioEstudiante = ({ onSubmit, guardando, onCerrar, entidades, modoEdicion, register, handleSubmit, errors, control, setValue, verPassword, setVerPassword }) => {
   const documento = useWatch({ control, name: 'numeroDocumento', defaultValue: '' });
 
   useEffect(() => {
@@ -129,27 +128,9 @@ const FormularioEstudiante = ({ onSubmit, guardando, onCerrar, entidades, docent
             <option key={e.id} value={e.id}>{e.nombre}{e.ciudad ? ` — ${e.ciudad}` : ''}</option>
           ))}
         </select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label">Docente supervisor</label>
-          <select className="input-field" {...register('docenteSupervisorId')}>
-            <option value="">Sin asignar</option>
-            {docentes.map((d) => (
-              <option key={d.id} value={d.id}>{d.nombre} {d.apellido}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="label">Bacteriólogo supervisor</label>
-          <select className="input-field" {...register('bacteriologoSupervisorId')}>
-            <option value="">Sin asignar</option>
-            {bacteriologos.map((b) => (
-              <option key={b.id} value={b.id}>{b.nombre} {b.apellido}</option>
-            ))}
-          </select>
-        </div>
+        <p className="text-xs text-gray-400 mt-1">
+          Los docentes y bacteriólogos supervisores se asignan a la entidad, no al estudiante individualmente.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -223,8 +204,6 @@ const FormularioEstudiante = ({ onSubmit, guardando, onCerrar, entidades, docent
 const Estudiantes = () => {
   const [estudiantes, setEstudiantes] = useState([]);
   const [entidades, setEntidades] = useState([]);
-  const [docentes, setDocentes] = useState([]);
-  const [bacteriologos, setBacteriologos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [modalCrear, setModalCrear] = useState(false);
   const [estudianteEditar, setEstudianteEditar] = useState(null);
@@ -239,16 +218,12 @@ const Estudiantes = () => {
 
   const cargar = async () => {
     try {
-      const [resEst, resEnt, resDoc, resBac] = await Promise.all([
+      const [resEst, resEnt] = await Promise.all([
         listarEstudiantesApi(),
         listarEntidadesApi({ activo: true }),
-        listarUsuariosApi({ rol: 'docente' }),
-        listarUsuariosApi({ rol: 'bacteriologo' }),
       ]);
       setEstudiantes(resEst.data.data);
       setEntidades(resEnt.data.data);
-      setDocentes(resDoc.data.data);
-      setBacteriologos(resBac.data.data);
     } catch {
       toast.error('Error al cargar datos');
     } finally {
@@ -266,8 +241,6 @@ const Estudiantes = () => {
       apellido: est.usuario.apellido,
       semestre: est.semestre,
       entidadId: est.entidadId || '',
-      docenteSupervisorId: est.docenteSupervisorId || '',
-      bacteriologoSupervisorId: est.bacteriologoSupervisorId || '',
       fechaInicio: fechaISO(est.fechaInicio),
       fechaFin: fechaISO(est.fechaFin),
     });
@@ -282,8 +255,6 @@ const Estudiantes = () => {
       const { data } = await crearEstudianteApi({
         ...datos,
         entidadId: datos.entidadId || undefined,
-        docenteSupervisorId: datos.docenteSupervisorId || undefined,
-        bacteriologoSupervisorId: datos.bacteriologoSupervisorId || undefined,
       });
       setEstudiantes((prev) => [data.data, ...prev]);
       cerrarCrear();
@@ -307,8 +278,6 @@ const Estudiantes = () => {
         apellido: datos.apellido,
         semestre: datos.semestre,
         entidadId: datos.entidadId || null,
-        docenteSupervisorId: datos.docenteSupervisorId || null,
-        bacteriologoSupervisorId: datos.bacteriologoSupervisorId || null,
         fechaInicio: datos.fechaInicio || null,
         fechaFin: datos.fechaFin || null,
       });
@@ -340,7 +309,7 @@ const Estudiantes = () => {
     }
   };
 
-  const propsForm = { entidades, docentes, bacteriologos, verPassword, setVerPassword };
+  const propsForm = { entidades, verPassword, setVerPassword };
 
   return (
     <div className="space-y-6">
@@ -371,7 +340,6 @@ const Estudiantes = () => {
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Documento</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Semestre</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Entidad</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Supervisores</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
                   <th className="px-4 py-3" />
                 </tr>
@@ -389,20 +357,7 @@ const Estudiantes = () => {
                     </td>
                     <td className="px-4 py-3 text-gray-600 text-xs">
                       {est.entidad?.nombre || <span className="text-gray-400 italic">Sin asignar</span>}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 space-y-0.5">
-                      <p>
-                        <span className="text-gray-400">Doc: </span>
-                        {est.docenteSupervisor
-                          ? `${est.docenteSupervisor.nombre} ${est.docenteSupervisor.apellido}`
-                          : <span className="italic text-gray-300">Sin asignar</span>}
-                      </p>
-                      <p>
-                        <span className="text-gray-400">Bact: </span>
-                        {est.bacteriologoSupervisor
-                          ? `${est.bacteriologoSupervisor.nombre} ${est.bacteriologoSupervisor.apellido}`
-                          : <span className="italic text-gray-300">Sin asignar</span>}
-                      </p>
+                      {est.entidad?.ciudad ? <span className="text-gray-400"> · {est.entidad.ciudad}</span> : null}
                     </td>
                     <td className="px-4 py-3">
                       <span className={est.usuario.activo ? 'badge badge-green' : 'badge badge-gray'}>

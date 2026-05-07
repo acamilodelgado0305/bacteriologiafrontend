@@ -46,6 +46,7 @@ const ChipFirma = ({ tiene, label, fecha }) => (
 const RegistroItem = ({ registro, rol, onActualizado }) => {
   const [expandido, setExpandido] = useState(false);
   const [firmando, setFirmando] = useState(false);
+  const [nombreFirmante, setNombreFirmante] = useState('');
   const firmaRef = useRef(null);
 
   const estudiante = registro.estudiante?.usuario;
@@ -56,13 +57,22 @@ const RegistroItem = ({ registro, rol, onActualizado }) => {
   const yaFirme = rol === 'docente' ? !!registro.firmaDocente : !!registro.firmaBacteriologo;
   const puedeFirmar = !yaFirme && !registro.firmado;
 
+  const nombreFirmanteGuardado = rol === 'docente'
+    ? registro.nombreFirmanteDocente
+    : registro.nombreFirmanteBacteriologo;
+
   const handleFirmar = async (firmaBase64) => {
+    if (!nombreFirmante.trim()) {
+      toast.error('Debes escribir tu nombre antes de firmar');
+      return;
+    }
     setFirmando(true);
     try {
-      const { data } = await firmarRegistroApi(registro.id, firmaBase64);
+      const { data } = await firmarRegistroApi(registro.id, firmaBase64, nombreFirmante.trim());
       toast.success('Firma guardada exitosamente');
       onActualizado(data.data);
       setExpandido(false);
+      setNombreFirmante('');
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al guardar la firma');
       firmaRef.current?.limpiar();
@@ -125,6 +135,28 @@ const RegistroItem = ({ registro, rol, onActualizado }) => {
 
       {expandido && (
         <div className="border-t border-gray-100 p-4 space-y-4">
+          {/* Supervisores del registro */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-blue-50 rounded-xl px-3 py-2">
+              <p className="text-xs font-medium text-blue-700 mb-0.5">Docente supervisor</p>
+              <p className="text-sm text-blue-900 font-medium">
+                {nombreDocente || <span className="italic text-blue-400">No asignado</span>}
+              </p>
+              {registro.nombreFirmanteDocente && (
+                <p className="text-xs text-blue-600 mt-0.5">Firmó: {registro.nombreFirmanteDocente}</p>
+              )}
+            </div>
+            <div className="bg-purple-50 rounded-xl px-3 py-2">
+              <p className="text-xs font-medium text-purple-700 mb-0.5">Bacteriólogo supervisor</p>
+              <p className="text-sm text-purple-900 font-medium">
+                {nombreBacteriologo || <span className="italic text-purple-400">No asignado</span>}
+              </p>
+              {registro.nombreFirmanteBacteriologo && (
+                <p className="text-xs text-purple-600 mt-0.5">Firmó: {registro.nombreFirmanteBacteriologo}</p>
+              )}
+            </div>
+          </div>
+
           {/* Exámenes por área */}
           {areas.length > 0 && (
             <div className="space-y-3">
@@ -157,24 +189,56 @@ const RegistroItem = ({ registro, rol, onActualizado }) => {
 
           {/* Pad de firma o estado */}
           {puedeFirmar ? (
-            <div className="border-t border-gray-100 pt-4">
-              <p className="label mb-1">
-                Tu firma ({rol === 'docente' ? 'Docente supervisor' : 'Bacteriólogo encargado'})
-              </p>
-              <p className="text-xs text-gray-400 mb-3">
-                Al firmar confirmas que supervisaste y revisaste este registro.
-              </p>
-              <SignaturePad ref={firmaRef} disabled={firmando} onFirma={handleFirmar} />
+            <div className="border-t border-gray-100 pt-4 space-y-3">
+              <div>
+                <p className="label mb-1">
+                  Tu firma ({rol === 'docente' ? 'Docente supervisor' : 'Bacteriólogo supervisor'})
+                </p>
+                <p className="text-xs text-gray-400">
+                  Al firmar confirmas que supervisaste y revisaste este registro.
+                </p>
+              </div>
+
+              {/* Nombre solo para bacteriólogos (cuenta compartida) */}
+              {rol === 'bacteriologo' && (
+                <div>
+                  <label className="label text-xs">Tu nombre completo *</label>
+                  <input
+                    type="text"
+                    value={nombreFirmante}
+                    onChange={(e) => setNombreFirmante(e.target.value)}
+                    placeholder="Escribe tu nombre y apellido"
+                    disabled={firmando}
+                    className="input-field disabled:bg-gray-50"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Necesario para identificar qué bacteriólogo firmó con la cuenta compartida.
+                  </p>
+                </div>
+              )}
+
+              <SignaturePad
+                ref={firmaRef}
+                disabled={firmando || (rol === 'bacteriologo' && !nombreFirmante.trim())}
+                onFirma={handleFirmar}
+              />
+              {rol === 'bacteriologo' && !nombreFirmante.trim() && (
+                <p className="text-xs text-amber-600 text-center">Escribe tu nombre para habilitar la firma</p>
+              )}
               {firmando && (
                 <p className="text-xs text-gray-400 mt-2 text-center animate-pulse">Guardando firma...</p>
               )}
             </div>
           ) : yaFirme ? (
             <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3">
-              <span>✅</span>
-              <span>Ya firmaste este registro el {formatearFechaCorta(
-                rol === 'docente' ? registro.firmaDocenteFecha : registro.firmaBacteriologoFecha
-              )}</span>
+              <div>
+                <p className="font-medium">✅ Firmado el {formatearFechaCorta(
+                  rol === 'docente' ? registro.firmaDocenteFecha : registro.firmaBacteriologoFecha
+                )}</p>
+                {nombreFirmanteGuardado && (
+                  <p className="text-xs text-green-600 mt-0.5">por {nombreFirmanteGuardado}</p>
+                )}
+              </div>
             </div>
           ) : null}
 
@@ -227,7 +291,7 @@ const Firmas = () => {
     : tab === 'proceso' ? enProceso
     : completados;
 
-  const rolLabel = rol === 'docente' ? 'docente supervisor' : 'bacteriólogo encargado';
+  const rolLabel = rol === 'docente' ? 'docente supervisor' : 'bacteriólogo supervisor';
 
   const Tab = ({ id, label, count }) => (
     <button
@@ -253,9 +317,9 @@ const Firmas = () => {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h2 className="text-2xl font-bold text-gray-800">Registros de mis estudiantes</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Registros donde soy supervisor</h2>
         <p className="text-gray-500 text-sm mt-1">
-          Registros diarios de los estudiantes asignados a ti como {rolLabel}
+          Registros diarios en los que fuiste seleccionado como {rolLabel}
         </p>
       </div>
 

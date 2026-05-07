@@ -7,9 +7,9 @@ const navItems = [
   { to: '/registros',     label: 'Registro Diario',      icon: '📋', roles: ['estudiante'] },
   { to: '/firmas',        label: 'Firmas pendientes',    icon: '✍️', roles: ['docente', 'bacteriologo'] },
   { to: '/estudiantes',   label: 'Estudiantes',          icon: '👨‍🎓', roles: ['admin', 'docente'] },
-  { to: '/docentes',      label: 'Docentes',             icon: '👩‍🏫', roles: ['admin'] },
-  { to: '/bacteriologos', label: 'Bacteriólogos',        icon: '🔬', roles: ['admin'] },
+  { to: '/supervisores',  label: 'Supervisores',         icon: '👥', roles: ['admin'] },
   { to: '/entidades',     label: 'Entidades',            icon: '🏥', roles: ['admin', 'docente'] },
+  { to: '/cierres',       label: 'Archivo Semestres',    icon: '🗄️', roles: ['admin', 'docente'] },
   { to: '/reportes',      label: 'Reportes',             icon: '📊', roles: ['admin', 'docente', 'bacteriologo', 'estudiante'] },
   { to: '/usuarios',      label: 'Usuarios',             icon: '👥', roles: ['admin'] },
 ];

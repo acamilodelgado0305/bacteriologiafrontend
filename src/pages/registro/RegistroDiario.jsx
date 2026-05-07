@@ -14,7 +14,7 @@ const formatearFecha = (iso) =>
 const formatearFechaCorta = (iso) =>
   new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 
-const FilaFirmante = ({ icono, rol, nombre, fechaFirma }) => (
+const FilaFirmante = ({ icono, rol, nombre, firmante, fechaFirma }) => (
   <div className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${
     fechaFirma ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'
   }`}>
@@ -24,6 +24,9 @@ const FilaFirmante = ({ icono, rol, nombre, fechaFirma }) => (
       <p className={`text-sm font-medium truncate ${nombre ? 'text-gray-800' : 'text-gray-400 italic'}`}>
         {nombre || 'Sin asignar'}
       </p>
+      {firmante && (
+        <p className="text-xs text-green-600 mt-0.5">Firmó: {firmante}</p>
+      )}
     </div>
     <div className="text-right flex-shrink-0">
       {fechaFirma ? (
@@ -45,6 +48,8 @@ export default function RegistroDiario() {
   const [observaciones, setObservaciones] = useState('');
   const [horaEntrada, setHoraEntrada] = useState('');
   const [horaSalida, setHoraSalida] = useState('');
+  const [docenteId, setDocenteId] = useState('');
+  const [bacteriologoId, setBacteriologoId] = useState('');
   const [registroExistente, setRegistroExistente] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [cargandoFecha, setCargandoFecha] = useState(false);
@@ -83,6 +88,8 @@ export default function RegistroDiario() {
         setObservaciones(reg.observaciones || '');
         setHoraEntrada(reg.horaEntrada || '');
         setHoraSalida(reg.horaSalida || '');
+        setDocenteId(reg.docenteSupervisorId || '');
+        setBacteriologoId(reg.bacteriologoSupervisorId || '');
       } else {
         const mapa = {};
         perfil.entidad?.examenes?.forEach((ex) => { mapa[ex.id] = 0; });
@@ -90,6 +97,8 @@ export default function RegistroDiario() {
         setObservaciones('');
         setHoraEntrada('');
         setHoraSalida('');
+        setDocenteId('');
+        setBacteriologoId('');
       }
     } catch {
       toast.error('Error al cargar el registro');
@@ -114,6 +123,14 @@ export default function RegistroDiario() {
       toast.error('Debes registrar al menos un examen');
       return;
     }
+    if (!docenteId) {
+      toast.error('Debes seleccionar el docente supervisor de esta jornada');
+      return;
+    }
+    if (!bacteriologoId) {
+      toast.error('Debes seleccionar el bacteriólogo supervisor de esta jornada');
+      return;
+    }
     if (firmaRef.current?.estaVacio()) {
       toast.error('Debes firmar el registro antes de guardar');
       return;
@@ -125,7 +142,13 @@ export default function RegistroDiario() {
         .map(([examenId, cantidad]) => ({ examenId, cantidad }))
         .filter((e) => e.cantidad > 0);
 
-      const { data } = await guardarRegistroApi({ fecha, examenes, observaciones, firma, horaEntrada: horaEntrada || null, horaSalida: horaSalida || null });
+      const { data } = await guardarRegistroApi({
+        fecha, examenes, observaciones, firma,
+        horaEntrada: horaEntrada || null,
+        horaSalida: horaSalida || null,
+        docenteSupervisorId: docenteId,
+        bacteriologoSupervisorId: bacteriologoId,
+      });
       setRegistroExistente(data.data);
       firmaRef.current?.limpiar();
       toast.success('Registro guardado y firmado exitosamente');
@@ -154,7 +177,7 @@ export default function RegistroDiario() {
     <div className="card text-center py-16">
       <span className="text-5xl">🏥</span>
       <p className="mt-3 font-medium text-gray-700">No tienes una entidad de práctica asignada</p>
-      <p className="text-sm text-gray-400 mt-1">Contacta a tu docente supervisor o al administrador</p>
+      <p className="text-sm text-gray-400 mt-1">Contacta a tu docente o al administrador</p>
     </div>
   );
 
@@ -164,13 +187,24 @@ export default function RegistroDiario() {
   const firmado = registroExistente?.firmado;
   const editable = !yaFirmo && !firmado;
 
+  const personal = perfil.entidad.personal || [];
+  const docentes = personal.filter((p) => p.usuario.rol === 'docente');
+  const bacteriologos = personal.filter((p) => p.usuario.rol === 'bacteriologo');
+
   const nombreEstudiante = `${usuario?.nombre || ''} ${usuario?.apellido || ''}`.trim();
-  const nombreDocente = perfil.docenteSupervisor
-    ? `${perfil.docenteSupervisor.nombre} ${perfil.docenteSupervisor.apellido}`
-    : null;
-  const nombreBacteriologo = perfil.bacteriologoSupervisor
-    ? `${perfil.bacteriologoSupervisor.nombre} ${perfil.bacteriologoSupervisor.apellido}`
-    : null;
+
+  // Nombres del supervisor del registro existente o del seleccionado actualmente
+  const nombreDocente = registroExistente?.docenteSupervisor
+    ? `${registroExistente.docenteSupervisor.nombre} ${registroExistente.docenteSupervisor.apellido}`
+    : docenteId
+      ? (() => { const d = docentes.find((p) => p.usuarioId === docenteId); return d ? `${d.usuario.nombre} ${d.usuario.apellido}` : null; })()
+      : null;
+
+  const nombreBacteriologo = registroExistente?.bacteriologoSupervisor
+    ? `${registroExistente.bacteriologoSupervisor.nombre} ${registroExistente.bacteriologoSupervisor.apellido}`
+    : bacteriologoId
+      ? (() => { const b = bacteriologos.find((p) => p.usuarioId === bacteriologoId); return b ? `${b.usuario.nombre} ${b.usuario.apellido}` : null; })()
+      : null;
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -233,6 +267,76 @@ export default function RegistroDiario() {
               disabled={!editable}
               className="input-field disabled:bg-gray-50 disabled:text-gray-400"
             />
+          </div>
+        </div>
+      </div>
+
+      {/* Supervisores de la jornada */}
+      <div className="card space-y-3">
+        <div>
+          <h3 className="font-semibold text-gray-800">Supervisores de esta jornada</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Selecciona qué docente y bacteriólogo te supervisaron hoy.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="label text-xs">Docente supervisor *</label>
+            {editable ? (
+              docentes.length === 0 ? (
+                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                  No hay docentes asignados a esta entidad
+                </p>
+              ) : (
+                <select
+                  className="input-field"
+                  value={docenteId}
+                  onChange={(e) => setDocenteId(e.target.value)}
+                  disabled={guardando}
+                >
+                  <option value="">Seleccionar docente...</option>
+                  {docentes.map((p) => (
+                    <option key={p.usuarioId} value={p.usuarioId}>
+                      {p.usuario.nombre} {p.usuario.apellido}
+                    </option>
+                  ))}
+                </select>
+              )
+            ) : (
+              <p className="text-sm font-medium text-gray-700 px-1">
+                {nombreDocente || <span className="text-gray-400 italic">No asignado</span>}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="label text-xs">Bacteriólogo supervisor *</label>
+            {editable ? (
+              bacteriologos.length === 0 ? (
+                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                  No hay bacteriólogos asignados a esta entidad
+                </p>
+              ) : (
+                <select
+                  className="input-field"
+                  value={bacteriologoId}
+                  onChange={(e) => setBacteriologoId(e.target.value)}
+                  disabled={guardando}
+                >
+                  <option value="">Seleccionar bacteriólogo...</option>
+                  {bacteriologos.map((p) => (
+                    <option key={p.usuarioId} value={p.usuarioId}>
+                      {p.usuario.nombre} {p.usuario.apellido}
+                    </option>
+                  ))}
+                </select>
+              )
+            ) : (
+              <p className="text-sm font-medium text-gray-700 px-1">
+                {nombreBacteriologo || <span className="text-gray-400 italic">No asignado</span>}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -372,6 +476,7 @@ export default function RegistroDiario() {
                 icono="🔬"
                 rol="Bacteriólogo supervisor"
                 nombre={nombreBacteriologo}
+                firmante={registroExistente.nombreFirmanteBacteriologo}
                 fechaFirma={registroExistente.firmaBacteriologoFecha}
               />
             </div>

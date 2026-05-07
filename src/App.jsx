@@ -9,11 +9,12 @@ import Usuarios from './pages/usuarios/Usuarios';
 import Entidades from './pages/entidades/Entidades';
 import EntidadDetalle from './pages/entidades/EntidadDetalle';
 import Estudiantes from './pages/estudiantes/Estudiantes';
-import Docentes from './pages/docentes/Docentes';
-import Bacteriologos from './pages/bacteriologos/Bacteriologos';
+import Supervisores from './pages/supervisores/Supervisores';
 import RegistroDiario from './pages/registro/RegistroDiario';
 import Firmas from './pages/firmas/Firmas';
 import Reportes from './pages/reportes/Reportes';
+import CierreSemestre from './pages/cierres/CierreSemestre';
+import CierreDetalle from './pages/cierres/CierreDetalle';
 
 const App = () => (
   <AuthProvider>
@@ -35,11 +36,12 @@ const App = () => (
             <Route path="/entidades" element={<Entidades />} />
             <Route path="/entidades/:id" element={<EntidadDetalle />} />
             <Route path="/estudiantes" element={<Estudiantes />} />
+            <Route path="/cierres" element={<CierreSemestre />} />
+            <Route path="/cierres/:id" element={<CierreDetalle />} />
           </Route>
 
           <Route element={<ProtectedRoute roles={['admin']} />}>
-            <Route path="/docentes" element={<Docentes />} />
-            <Route path="/bacteriologos" element={<Bacteriologos />} />
+            <Route path="/supervisores" element={<Supervisores />} />
             <Route path="/usuarios" element={<Usuarios />} />
           </Route>
         </Route>
