@@ -8,7 +8,11 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+    @apply bg-gray-50 text-gray-900 font-sans antialiased select-none cursor-default;
+  }
+
+  input, textarea, [contenteditable] {
+    @apply select-text cursor-text;
   }
 
   h1, h2, h3, h4, h5, h6 {
