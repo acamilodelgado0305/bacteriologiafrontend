@@ -374,11 +374,14 @@ export default function RegistroDiario() {
                           className="w-8 h-8 rounded-lg border border-gray-200 text-gray-600 font-bold hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex items-center justify-center">
                           −
                         </button>
-                        <input type="number" min="0"
+                        <input
+                          type="number" min="0"
                           value={cantidades[ex.id] || 0}
                           onChange={(e) => cambiarCantidad(ex.id, e.target.value)}
+                          onFocus={(e) => e.target.select()}
+                          onBlur={(e) => { if (e.target.value === '' || isNaN(e.target.value)) cambiarCantidad(ex.id, 0); }}
                           disabled={!editable}
-                          className="w-14 text-center border border-gray-200 rounded-lg py-1.5 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-up-blue disabled:bg-gray-50 disabled:text-gray-400"
+                          className="w-16 text-center border border-gray-200 rounded-lg py-1.5 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-up-blue disabled:bg-gray-50 disabled:text-gray-400"
                         />
                         <button type="button" onClick={() => incrementar(ex.id)}
                           disabled={!editable}
