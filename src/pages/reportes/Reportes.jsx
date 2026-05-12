@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { pdf } from '@react-pdf/renderer';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -69,28 +70,30 @@ const Firma = ({ activa, letra, titulo }) => (
 /* ════════════════════════════════════════════════════════════════
    COMPONENTE PRINCIPAL
 ════════════════════════════════════════════════════════════════ */
-export default function Reportes() {
+export default function Reportes({ cierreId = null, cierreNombre = null, estudiantesIniciales = null }) {
   const { usuario, esEstudiante } = useAuth();
-  const [estudiantes,   setEstudiantes]   = useState([]);
+  const [estudiantes,   setEstudiantes]   = useState(estudiantesIniciales || []);
   const [estudianteId,  setEstudianteId]  = useState('');
-  const [tipoPeriodo,   setTipoPeriodo]   = useState('mensual');
+  const [tipoPeriodo,   setTipoPeriodo]   = useState(cierreId ? 'completo' : 'mensual');
   const [registros,     setRegistros]     = useState([]);
   const [cargando,      setCargando]      = useState(false);
   const [cargandoEst,   setCargandoEst]   = useState(false);
   const [cargandoPDF,   setCargandoPDF]   = useState(false);
   const [buscado,       setBuscado]       = useState(false);
 
-  const periodo = periodos[tipoPeriodo]();
+  const periodo = tipoPeriodo === 'completo'
+    ? { desde: null, hasta: null, label: 'Todo el período archivado' }
+    : periodos[tipoPeriodo]();
 
-  /* Cargar lista de estudiantes */
+  /* Cargar lista de estudiantes (omitir si ya vienen del cierre) */
   useEffect(() => {
-    if (esEstudiante) return;
+    if (esEstudiante || estudiantesIniciales) return;
     setCargandoEst(true);
     listarEstudiantesApi()
       .then(({ data }) => setEstudiantes(data.data))
       .catch(() => toast.error('Error al cargar estudiantes'))
       .finally(() => setCargandoEst(false));
-  }, [esEstudiante]);
+  }, [esEstudiante, estudiantesIniciales]);
 
   /* Buscar registros */
   const buscar = useCallback(async () => {
@@ -101,15 +104,22 @@ export default function Reportes() {
       if (esEstudiante) {
         const res = await miHistorialApi();
         const { desde, hasta } = periodo;
-        data = res.data.data.filter((r) => { const f = r.fecha.split('T')[0]; return f >= desde && f <= hasta; });
+        if (desde && hasta) {
+          data = res.data.data.filter((r) => { const f = r.fecha.split('T')[0]; return f >= desde && f <= hasta; });
+        } else {
+          data = res.data.data;
+        }
       } else {
-        const res = await listarRegistrosApi({ estudianteId, desde: periodo.desde, hasta: periodo.hasta });
+        const params = { estudianteId };
+        if (cierreId) params.cierreId = cierreId;
+        if (tipoPeriodo !== 'completo') { params.desde = periodo.desde; params.hasta = periodo.hasta; }
+        const res = await listarRegistrosApi(params);
         data = res.data.data;
       }
       setRegistros(data);
     } catch { toast.error('Error al generar el reporte'); }
     finally  { setCargando(false); }
-  }, [esEstudiante, estudianteId, periodo]);
+  }, [esEstudiante, estudianteId, periodo, cierreId, tipoPeriodo]);
 
   useEffect(() => { if (esEstudiante) buscar(); }, [tipoPeriodo, esEstudiante]);
 
@@ -174,6 +184,21 @@ export default function Reportes() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
 
+      {/* ── Banner cierre (solo en modo archivo) ── */}
+      {cierreId && cierreNombre && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">📁</span>
+            <span className="text-xs font-semibold text-amber-700 uppercase tracking-wide">Modo Archivo</span>
+            <span className="text-amber-600 text-xs mx-1">·</span>
+            <span className="text-sm font-semibold text-amber-800">{cierreNombre}</span>
+          </div>
+          <Link to={`/cierres/${cierreId}`} className="text-xs text-amber-600 hover:text-amber-800 transition-colors">
+            ← Volver al cierre
+          </Link>
+        </div>
+      )}
+
       {/* ── Título + botón descargar ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
@@ -229,6 +254,7 @@ export default function Reportes() {
               { key: 'semanal',   label: 'Semanal' },
               { key: 'mensual',   label: 'Mensual' },
               { key: 'semestral', label: 'Semestral' },
+              ...(cierreId ? [{ key: 'completo', label: 'Todo el período' }] : []),
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -245,7 +271,7 @@ export default function Reportes() {
             ))}
           </div>
           <p className="text-xs text-gray-400 mt-1.5">
-            {periodo.label} · {fmtCorta(periodo.desde)} — {fmtCorta(periodo.hasta)}
+            {periodo.label}{periodo.desde ? ` · ${fmtCorta(periodo.desde)} — ${fmtCorta(periodo.hasta)}` : ''}
           </p>
         </div>
 

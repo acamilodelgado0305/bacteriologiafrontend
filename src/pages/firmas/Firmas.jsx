@@ -62,7 +62,7 @@ const RegistroItem = ({ registro, rol, onActualizado }) => {
     : registro.nombreFirmanteBacteriologo;
 
   const handleFirmar = async (firmaBase64) => {
-    if (!nombreFirmante.trim()) {
+    if (rol === 'bacteriologo' && !nombreFirmante.trim()) {
       toast.error('Debes escribir tu nombre antes de firmar');
       return;
     }
@@ -140,7 +140,9 @@ const RegistroItem = ({ registro, rol, onActualizado }) => {
             <div className="bg-blue-50 rounded-xl px-3 py-2">
               <p className="text-xs font-medium text-blue-700 mb-0.5">Docente supervisor</p>
               <p className="text-sm text-blue-900 font-medium">
-                {nombreDocente || <span className="italic text-blue-400">No asignado</span>}
+                {registro.docenteSupervisor
+                  ? `${registro.docenteSupervisor.nombre} ${registro.docenteSupervisor.apellido}`
+                  : <span className="italic text-blue-400">No asignado</span>}
               </p>
               {registro.nombreFirmanteDocente && (
                 <p className="text-xs text-blue-600 mt-0.5">Firmó: {registro.nombreFirmanteDocente}</p>
@@ -149,7 +151,9 @@ const RegistroItem = ({ registro, rol, onActualizado }) => {
             <div className="bg-purple-50 rounded-xl px-3 py-2">
               <p className="text-xs font-medium text-purple-700 mb-0.5">Bacteriólogo supervisor</p>
               <p className="text-sm text-purple-900 font-medium">
-                {nombreBacteriologo || <span className="italic text-purple-400">No asignado</span>}
+                {registro.bacteriologoSupervisor
+                  ? `${registro.bacteriologoSupervisor.nombre} ${registro.bacteriologoSupervisor.apellido}`
+                  : <span className="italic text-purple-400">No asignado</span>}
               </p>
               {registro.nombreFirmanteBacteriologo && (
                 <p className="text-xs text-purple-600 mt-0.5">Firmó: {registro.nombreFirmanteBacteriologo}</p>

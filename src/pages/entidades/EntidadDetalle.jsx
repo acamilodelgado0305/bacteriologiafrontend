@@ -1,12 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import {
   obtenerEntidadApi, crearExamenApi, actualizarExamenApi,
   agregarPersonalEntidadApi, eliminarPersonalEntidadApi,
+  listarEntidadesApi,
 } from '../../services/entidadService';
 import { crearUsuarioApi, listarUsuariosApi } from '../../services/userService';
+import {
+  listarEstudiantesApi, crearEstudianteApi,
+  actualizarEstudianteApi, eliminarEstudianteApi,
+} from '../../services/estudianteService';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
@@ -31,7 +36,8 @@ const OjoIcon = ({ visible }) => visible ? (
   </svg>
 );
 
-const ModalCredenciales = ({ credenciales, onCerrar }) => {
+/* ─── Modal credenciales supervisor ─── */
+const ModalCredencialesSupervisor = ({ credenciales, onCerrar }) => {
   const copiar = (texto) => { navigator.clipboard.writeText(texto); toast.success('Copiado'); };
   const color = credenciales?.rol === 'docente' ? 'blue' : 'purple';
   return (
@@ -54,9 +60,7 @@ const ModalCredenciales = ({ credenciales, onCerrar }) => {
             <div key={label}>
               <p className="text-xs text-gray-500 mb-1">{label}</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 bg-white rounded-lg px-3 py-2 text-sm text-gray-800 border break-all">
-                  {value}
-                </code>
+                <code className="flex-1 bg-white rounded-lg px-3 py-2 text-sm text-gray-800 border break-all">{value}</code>
                 <button onClick={() => copiar(value)}
                   className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0">
                   📋
@@ -74,7 +78,41 @@ const ModalCredenciales = ({ credenciales, onCerrar }) => {
   );
 };
 
-// Modal para crear un nuevo supervisor (docente o bacteriólogo) y asociarlo a la entidad
+/* ─── Modal credenciales estudiante ─── */
+const ModalCredencialesEstudiante = ({ credenciales, onCerrar }) => {
+  const copiar = (texto) => { navigator.clipboard.writeText(texto); toast.success('Copiado al portapapeles'); };
+  return (
+    <Modal abierto={!!credenciales} onCerrar={onCerrar} titulo="✅ Estudiante creado exitosamente">
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">Comparte estas credenciales con el estudiante.</p>
+        <div className="bg-blue-50 rounded-xl p-4 space-y-3">
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Estudiante</p>
+            <p className="font-semibold text-gray-800">{credenciales?.nombre}</p>
+          </div>
+          {[
+            { label: 'Correo electrónico', value: credenciales?.email },
+            { label: 'Contraseña', value: credenciales?.password },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <p className="text-xs text-gray-500 mb-1">{label}</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 bg-white rounded-lg px-3 py-2 text-sm text-gray-800 border border-blue-100 break-all">{value}</code>
+                <button onClick={() => copiar(value)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors flex-shrink-0">📋</button>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+          ⚠️ Guarda estas credenciales ahora. El sistema no mostrará la contraseña de nuevo.
+        </p>
+        <Button className="w-full" onClick={onCerrar}>Entendido</Button>
+      </div>
+    </Modal>
+  );
+};
+
+/* ─── Modal crear supervisor ─── */
 const ModalCrearSupervisor = ({ abierto, onCerrar, onCreado }) => {
   const [guardando, setGuardando] = useState(false);
   const [verPassword, setVerPassword] = useState(false);
@@ -84,9 +122,7 @@ const ModalCrearSupervisor = ({ abierto, onCerrar, onCreado }) => {
   const documento = useWatch({ control, name: 'documento', defaultValue: '' });
   const rol = useWatch({ control, name: 'rol', defaultValue: 'docente' });
 
-  useEffect(() => {
-    setValue('password', generarPassword(documento));
-  }, [documento, setValue]);
+  useEffect(() => { setValue('password', generarPassword(documento)); }, [documento, setValue]);
 
   const cerrar = () => { onCerrar(); reset({ rol: 'docente' }); setVerPassword(false); };
 
@@ -103,8 +139,6 @@ const ModalCrearSupervisor = ({ abierto, onCerrar, onCreado }) => {
   return (
     <Modal abierto={abierto} onCerrar={cerrar} titulo="Crear supervisor en esta entidad" ancho="max-w-lg">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-
-        {/* Rol */}
         <div>
           <label className="label">Rol *</label>
           <div className="grid grid-cols-2 gap-2">
@@ -146,18 +180,13 @@ const ModalCrearSupervisor = ({ abierto, onCerrar, onCreado }) => {
           <div className="flex items-center justify-between mb-1">
             <label className="label mb-0">Contraseña (auto-generada)</label>
             <button type="button" onClick={() => setValue('password', generarPassword(documento))}
-              className="text-xs text-up-blue hover:underline">
-              🔄 Regenerar
-            </button>
+              className="text-xs text-up-blue hover:underline">🔄 Regenerar</button>
           </div>
           <div className="relative">
             <input
               type={verPassword ? 'text' : 'password'}
               className={`input-field font-mono pr-20 ${errors.password ? 'input-error' : ''}`}
-              {...register('password', {
-                required: 'Requerida',
-                minLength: { value: 8, message: 'Mínimo 8 caracteres' },
-              })}
+              {...register('password', { required: 'Requerida', minLength: { value: 8, message: 'Mínimo 8 caracteres' } })}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
               <button type="button"
@@ -183,16 +212,14 @@ const ModalCrearSupervisor = ({ abierto, onCerrar, onCreado }) => {
 
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="secondary" className="flex-1" onClick={cerrar}>Cancelar</Button>
-          <Button type="submit" loading={guardando} className="flex-1">
-            Crear y asociar
-          </Button>
+          <Button type="submit" loading={guardando} className="flex-1">Crear y asociar</Button>
         </div>
       </form>
     </Modal>
   );
 };
 
-// Modal para asociar un supervisor ya existente en el sistema
+/* ─── Modal asociar supervisor existente ─── */
 const ModalAsociarExistente = ({ abierto, onCerrar, idsActuales, onAsociado }) => {
   const [usuarios, setUsuarios] = useState([]);
   const [seleccionado, setSeleccionado] = useState('');
@@ -253,28 +280,194 @@ const ModalAsociarExistente = ({ abierto, onCerrar, idsActuales, onAsociado }) =
         )}
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="secondary" className="flex-1" onClick={onCerrar}>Cancelar</Button>
-          <Button className="flex-1" loading={asociando} disabled={!seleccionado} onClick={handleAsociar}>
-            Asociar
-          </Button>
+          <Button className="flex-1" loading={asociando} disabled={!seleccionado} onClick={handleAsociar}>Asociar</Button>
         </div>
       </div>
     </Modal>
   );
 };
 
+/* ─── Formulario estudiante (crear / editar) ─── */
+const FormularioEstudiante = ({
+  onSubmit, guardando, onCerrar, entidades, modoEdicion,
+  register, handleSubmit, errors, control, setValue, verPassword, setVerPassword,
+}) => {
+  const documento = useWatch({ control, name: 'numeroDocumento', defaultValue: '' });
+
+  useEffect(() => {
+    if (!modoEdicion) setValue('password', generarPassword(documento));
+  }, [documento, setValue, modoEdicion]);
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Nombre *" error={errors.nombre?.message}
+          {...register('nombre', { required: 'Requerido' })} />
+        <Input label="Apellido *" error={errors.apellido?.message}
+          {...register('apellido', { required: 'Requerido' })} />
+      </div>
+
+      {!modoEdicion && (
+        <Input label="Número de documento *" error={errors.numeroDocumento?.message}
+          {...register('numeroDocumento', { required: 'Requerido' })} />
+      )}
+
+      <div>
+        <label className="label">Semestre *</label>
+        <select className={`input-field ${errors.semestre ? 'input-error' : ''}`}
+          {...register('semestre', { required: 'Requerido' })}>
+          <option value="">Seleccionar semestre</option>
+          <option value="noveno">Noveno semestre</option>
+          <option value="decimo">Décimo semestre</option>
+        </select>
+        {errors.semestre && <p className="text-xs text-red-500 mt-1">{errors.semestre.message}</p>}
+      </div>
+
+      <div>
+        <label className="label">Entidad de práctica</label>
+        <select className="input-field" {...register('entidadId')}>
+          <option value="">Sin asignar</option>
+          {entidades.map((e) => (
+            <option key={e.id} value={e.id}>{e.nombre}{e.ciudad ? ` — ${e.ciudad}` : ''}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Fecha inicio práctica" type="date" {...register('fechaInicio')} />
+        <Input label="Fecha fin práctica" type="date" {...register('fechaFin')} />
+      </div>
+
+      {!modoEdicion && (
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-sm font-medium text-gray-700 mb-3">Credenciales de acceso</p>
+          <div className="space-y-3">
+            <Input label="Correo electrónico *" type="email" error={errors.email?.message}
+              {...register('email', {
+                required: 'Requerido',
+                pattern: { value: /\S+@\S+\.\S+/, message: 'Email inválido' },
+              })} />
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="label mb-0">Contraseña (auto-generada)</label>
+                <button type="button"
+                  onClick={() => setValue('password', generarPassword(documento))}
+                  className="text-xs text-up-blue hover:underline">🔄 Regenerar</button>
+              </div>
+              <div className="relative">
+                <input
+                  type={verPassword ? 'text' : 'password'}
+                  className={`input-field font-mono pr-20 ${errors.password ? 'input-error' : ''}`}
+                  {...register('password', {
+                    required: 'Requerida',
+                    minLength: { value: 8, message: 'Mínimo 8 caracteres' },
+                  })}
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <button type="button"
+                    onClick={() => {
+                      const el = document.querySelector('input[name="password"]');
+                      if (el) { navigator.clipboard.writeText(el.value); toast.success('Contraseña copiada'); }
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                  <button type="button" onClick={() => setVerPassword((v) => !v)}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors">
+                    <OjoIcon visible={verPassword} />
+                  </button>
+                </div>
+              </div>
+              {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password.message}</p>}
+              <p className="text-xs text-gray-400 mt-1">Generada a partir del número de documento. Puedes editarla.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex gap-3 pt-2">
+        <Button type="button" variant="secondary" className="flex-1" onClick={onCerrar}>Cancelar</Button>
+        <Button type="submit" loading={guardando} className="flex-1">
+          {modoEdicion ? 'Guardar cambios' : 'Crear estudiante'}
+        </Button>
+      </div>
+    </form>
+  );
+};
+
+/* ─── Tab bar ─── */
+const TabBar = ({ tab, setTab, counts }) => {
+  const tabs = [
+    { id: 'examenes', label: 'Exámenes', icon: '🧪', count: counts.examenes },
+    { id: 'supervisores', label: 'Supervisores', icon: '👥', count: counts.supervisores },
+    { id: 'estudiantes', label: 'Estudiantes', icon: '👨‍🎓', count: counts.estudiantes },
+  ];
+  return (
+    <div className="flex gap-2 flex-wrap border-b border-gray-100 pb-0">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          onClick={() => setTab(t.id)}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+            tab === t.id
+              ? 'border-up-blue text-up-blue bg-blue-50/50'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
+        >
+          <span>{t.icon}</span>
+          {t.label}
+          <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${
+            tab === t.id ? 'bg-up-blue/10 text-up-blue' : 'bg-gray-100 text-gray-500'
+          }`}>
+            {t.count}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+/* ══════════════════════════════════════════════
+   COMPONENTE PRINCIPAL
+══════════════════════════════════════════════ */
 const EntidadDetalle = () => {
   const { id } = useParams();
+  const [tab, setTab] = useState('examenes');
   const [entidad, setEntidad] = useState(null);
   const [cargando, setCargando] = useState(true);
+
+  /* ── Exámenes ── */
   const [modalExamen, setModalExamen] = useState(false);
+  const [guardandoExamen, setGuardandoExamen] = useState(false);
+  const formExamen = useForm();
+
+  /* ── Supervisores ── */
   const [modalCrearSupervisor, setModalCrearSupervisor] = useState(false);
   const [modalAsociar, setModalAsociar] = useState(false);
-  const [guardando, setGuardando] = useState(false);
-  const [credenciales, setCredenciales] = useState(null);
+  const [credencialesSupervisor, setCredencialesSupervisor] = useState(null);
   const [eliminandoId, setEliminandoId] = useState(null);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  /* ── Estudiantes ── */
+  const [estudiantes, setEstudiantes] = useState([]);
+  const [estudiantesCargando, setEstudiantesCargando] = useState(false);
+  const [estudiantesLoaded, setEstudiantesLoaded] = useState(false);
+  const [entidades, setEntidades] = useState([]);
+  const [modalCrearEst, setModalCrearEst] = useState(false);
+  const [estudianteEditar, setEstudianteEditar] = useState(null);
+  const [estudianteDesactivar, setEstudianteDesactivar] = useState(null);
+  const [guardandoEst, setGuardandoEst] = useState(false);
+  const [desactivando, setDesactivando] = useState(false);
+  const [credencialesEst, setCredencialesEst] = useState(null);
+  const [verPassword, setVerPassword] = useState(false);
 
+  const formCrearEst = useForm();
+  const formEditarEst = useForm();
+
+  /* ── Cargar entidad ── */
   const cargar = async () => {
     try {
       const { data } = await obtenerEntidadApi(id);
@@ -288,19 +481,65 @@ const EntidadDetalle = () => {
 
   useEffect(() => { cargar(); }, [id]);
 
-  // Crear nuevo supervisor y asociarlo automáticamente
+  /* ── Cargar estudiantes (lazy) ── */
+  const cargarEstudiantes = useCallback(async () => {
+    if (estudiantesLoaded) return;
+    setEstudiantesCargando(true);
+    try {
+      const [resEst, resEnt] = await Promise.all([
+        listarEstudiantesApi({ entidadId: id }),
+        listarEntidadesApi({ activo: true }),
+      ]);
+      setEstudiantes(resEst.data.data);
+      setEntidades(resEnt.data.data);
+      setEstudiantesLoaded(true);
+    } catch {
+      toast.error('Error al cargar estudiantes');
+    } finally {
+      setEstudiantesCargando(false);
+    }
+  }, [id, estudiantesLoaded]);
+
+  useEffect(() => {
+    if (tab === 'estudiantes') cargarEstudiantes();
+  }, [tab, cargarEstudiantes]);
+
+  /* ── Handlers: Exámenes ── */
+  const onSubmitExamen = async (datos) => {
+    setGuardandoExamen(true);
+    try {
+      const { data } = await crearExamenApi(id, datos);
+      setEntidad((prev) => ({ ...prev, examenes: [...prev.examenes, data.data] }));
+      toast.success('Examen agregado');
+      formExamen.reset();
+      setModalExamen(false);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al crear examen');
+    } finally {
+      setGuardandoExamen(false);
+    }
+  };
+
+  const toggleExamen = async (examen) => {
+    try {
+      await actualizarExamenApi(id, examen.id, { activo: !examen.activo });
+      setEntidad((prev) => ({
+        ...prev,
+        examenes: prev.examenes.map((e) => e.id === examen.id ? { ...e, activo: !e.activo } : e),
+      }));
+    } catch {
+      toast.error('Error al actualizar examen');
+    }
+  };
+
+  /* ── Handlers: Supervisores ── */
   const handleCrearSupervisor = async (datos) => {
     try {
       const { data: resUsuario } = await crearUsuarioApi(datos);
       const nuevoUsuario = resUsuario.data;
       const { data: resPersonal } = await agregarPersonalEntidadApi(id, nuevoUsuario.id);
       setEntidad((prev) => ({ ...prev, personal: [...prev.personal, resPersonal.data] }));
-      setCredenciales({
-        nombre: `${datos.nombre} ${datos.apellido}`,
-        email: datos.email,
-        password: datos.password,
-        rol: datos.rol,
-      });
+      setCredencialesSupervisor({ nombre: `${datos.nombre} ${datos.apellido}`, email: datos.email, password: datos.password, rol: datos.rol });
       toast.success('Supervisor creado y asociado a la entidad');
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al crear supervisor');
@@ -308,7 +547,6 @@ const EntidadDetalle = () => {
     }
   };
 
-  // Asociar supervisor ya existente
   const handleAsociarExistente = async (usuarioId) => {
     try {
       const { data } = await agregarPersonalEntidadApi(id, usuarioId);
@@ -333,39 +571,83 @@ const EntidadDetalle = () => {
     }
   };
 
-  const onSubmitExamen = async (datos) => {
-    setGuardando(true);
+  /* ── Handlers: Estudiantes ── */
+  const cerrarCrearEst = () => { setModalCrearEst(false); formCrearEst.reset(); setVerPassword(false); };
+  const cerrarEditarEst = () => { setEstudianteEditar(null); formEditarEst.reset(); };
+
+  const abrirEditarEst = (est) => {
+    setEstudianteEditar(est);
+    const fechaISO = (d) => d ? new Date(d).toISOString().split('T')[0] : '';
+    formEditarEst.reset({
+      nombre: est.usuario.nombre,
+      apellido: est.usuario.apellido,
+      semestre: est.semestre,
+      entidadId: est.entidadId || '',
+      fechaInicio: fechaISO(est.fechaInicio),
+      fechaFin: fechaISO(est.fechaFin),
+    });
+  };
+
+  const onCrearEst = async (datos) => {
+    setGuardandoEst(true);
     try {
-      const { data } = await crearExamenApi(id, datos);
-      setEntidad((prev) => ({ ...prev, examenes: [...prev.examenes, data.data] }));
-      toast.success('Examen agregado');
-      reset();
-      setModalExamen(false);
+      const { data } = await crearEstudianteApi({ ...datos, entidadId: datos.entidadId || undefined });
+      setEstudiantes((prev) => [data.data, ...prev]);
+      setEntidad((prev) => ({ ...prev, _count: { ...prev._count, estudiantes: prev._count.estudiantes + 1 } }));
+      cerrarCrearEst();
+      setCredencialesEst({ nombre: `${datos.nombre} ${datos.apellido}`, email: datos.email, password: datos.password });
     } catch (err) {
-      toast.error(err.response?.data?.mensaje || 'Error al crear examen');
+      toast.error(err.response?.data?.mensaje || 'Error al crear estudiante');
     } finally {
-      setGuardando(false);
+      setGuardandoEst(false);
     }
   };
 
-  const toggleExamen = async (examen) => {
+  const onEditarEst = async (datos) => {
+    setGuardandoEst(true);
     try {
-      await actualizarExamenApi(id, examen.id, { activo: !examen.activo });
-      setEntidad((prev) => ({
-        ...prev,
-        examenes: prev.examenes.map((e) => e.id === examen.id ? { ...e, activo: !e.activo } : e),
-      }));
-    } catch {
-      toast.error('Error al actualizar examen');
+      const { data } = await actualizarEstudianteApi(estudianteEditar.id, {
+        nombre: datos.nombre,
+        apellido: datos.apellido,
+        semestre: datos.semestre,
+        entidadId: datos.entidadId || null,
+        fechaInicio: datos.fechaInicio || null,
+        fechaFin: datos.fechaFin || null,
+      });
+      setEstudiantes((prev) => prev.map((e) => e.id === estudianteEditar.id ? data.data : e));
+      cerrarEditarEst();
+      toast.success('Estudiante actualizado');
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al actualizar');
+    } finally {
+      setGuardandoEst(false);
     }
   };
 
+  const onDesactivarEst = async () => {
+    setDesactivando(true);
+    try {
+      await eliminarEstudianteApi(estudianteDesactivar.id);
+      setEstudiantes((prev) =>
+        prev.map((e) => e.id === estudianteDesactivar.id
+          ? { ...e, usuario: { ...e.usuario, activo: false } }
+          : e)
+      );
+      setEstudianteDesactivar(null);
+      toast.success('Estudiante desactivado');
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al desactivar');
+    } finally {
+      setDesactivando(false);
+    }
+  };
+
+  /* ── Loading / not found ── */
   if (cargando) return (
     <div className="flex justify-center py-16">
       <div className="animate-spin rounded-full h-8 w-8 border-4 border-up-blue border-t-transparent" />
     </div>
   );
-
   if (!entidad) return <p className="text-gray-500">Entidad no encontrada</p>;
 
   const areaGroups = entidad.examenes.reduce((acc, ex) => {
@@ -378,6 +660,8 @@ const EntidadDetalle = () => {
   const docentes = entidad.personal.filter((p) => p.usuario.rol === 'docente');
   const bacteriologos = entidad.personal.filter((p) => p.usuario.rol === 'bacteriologo');
   const idsActuales = new Set(entidad.personal.map((p) => p.usuarioId));
+
+  const propsFormEst = { entidades, verPassword, setVerPassword };
 
   return (
     <div className="space-y-6">
@@ -406,164 +690,324 @@ const EntidadDetalle = () => {
         </div>
       </div>
 
-      {/* Personal supervisor */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800">Personal supervisor</h3>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Los estudiantes seleccionan al supervisor de guardia al crear cada registro diario.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setModalAsociar(true)}>
-              Asociar existente
-            </Button>
-            <Button onClick={() => setModalCrearSupervisor(true)}>
-              + Crear supervisor
-            </Button>
-          </div>
-        </div>
+      {/* Tabs */}
+      <TabBar
+        tab={tab}
+        setTab={setTab}
+        counts={{
+          examenes: entidad.examenes.length,
+          supervisores: entidad.personal.length,
+          estudiantes: entidad._count.estudiantes,
+        }}
+      />
 
-        {entidad.personal.length === 0 ? (
-          <div className="card text-center py-10 text-gray-400">
-            <span className="text-4xl">👥</span>
-            <p className="mt-2 text-sm">No hay supervisores asociados a esta entidad</p>
-            <p className="text-xs mt-1">Crea un nuevo supervisor o asocia uno existente</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {docentes.length > 0 && (
-              <div className="card p-0 overflow-hidden">
-                <div className="bg-blue-50 px-4 py-2 border-b border-blue-100">
-                  <span className="text-sm font-semibold text-blue-700">Docentes ({docentes.length})</span>
-                </div>
-                <div className="divide-y divide-gray-50">
-                  {docentes.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between px-4 py-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{p.usuario.nombre} {p.usuario.apellido}</p>
-                        <p className="text-xs text-gray-400">{p.usuario.email}</p>
-                      </div>
-                      <button
-                        onClick={() => onEliminarPersonal(p.usuarioId)}
-                        disabled={eliminandoId === p.usuarioId}
-                        className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors disabled:opacity-40"
-                      >
-                        {eliminandoId === p.usuarioId ? '...' : 'Quitar'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {bacteriologos.length > 0 && (
-              <div className="card p-0 overflow-hidden">
-                <div className="bg-purple-50 px-4 py-2 border-b border-purple-100">
-                  <span className="text-sm font-semibold text-purple-700">Bacteriólogos ({bacteriologos.length})</span>
-                </div>
-                <div className="divide-y divide-gray-50">
-                  {bacteriologos.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between px-4 py-3">
-                      <div>
-                        <p className="text-sm font-medium text-gray-800">{p.usuario.nombre} {p.usuario.apellido}</p>
-                        <p className="text-xs text-gray-400">{p.usuario.email}</p>
-                      </div>
-                      <button
-                        onClick={() => onEliminarPersonal(p.usuarioId)}
-                        disabled={eliminandoId === p.usuarioId}
-                        className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors disabled:opacity-40"
-                      >
-                        {eliminandoId === p.usuarioId ? '...' : 'Quitar'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Exámenes */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-800">Exámenes disponibles</h3>
-        <Button onClick={() => setModalExamen(true)}>+ Agregar examen</Button>
-      </div>
-
-      {entidad.examenes.length === 0 ? (
-        <div className="card text-center py-12 text-gray-400">
-          <span className="text-4xl">🧪</span>
-          <p className="mt-2 text-sm">No hay exámenes registrados para esta entidad</p>
-        </div>
-      ) : (
+      {/* ════ TAB: EXÁMENES ════ */}
+      {tab === 'examenes' && (
         <div className="space-y-4">
-          {Object.entries(areaGroups).map(([area, examenes]) => (
-            <div key={area} className="card p-0 overflow-hidden">
-              <div className="bg-gray-50 px-4 py-2 border-b border-gray-100">
-                <span className="text-sm font-semibold text-gray-600">{area}</span>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {examenes.map((ex) => (
-                  <div key={ex.id} className="flex items-center justify-between px-4 py-3">
-                    <span className={`text-sm ${ex.activo ? 'text-gray-800' : 'text-gray-400 line-through'}`}>
-                      {ex.nombre}
-                    </span>
-                    <button
-                      onClick={() => toggleExamen(ex)}
-                      className={`text-xs px-2 py-1 rounded-full transition-colors ${
-                        ex.activo
-                          ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700'
-                          : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'
-                      }`}
-                    >
-                      {ex.activo ? 'Activo' : 'Inactivo'}
-                    </button>
-                  </div>
-                ))}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Exámenes disponibles</h3>
+              <p className="text-sm text-gray-400 mt-0.5">Los estudiantes registran la cantidad diaria de cada examen.</p>
+            </div>
+            <Button onClick={() => setModalExamen(true)}>+ Agregar examen</Button>
+          </div>
+
+          {entidad.examenes.length === 0 ? (
+            <div className="card text-center py-12 text-gray-400">
+              <span className="text-4xl">🧪</span>
+              <p className="mt-2 text-sm">No hay exámenes registrados para esta entidad</p>
+            </div>
+          ) : (
+            <div className="card p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Examen</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Área</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {entidad.examenes.map((ex) => (
+                      <tr key={ex.id} className="hover:bg-gray-50 transition-colors">
+                        <td className={`px-4 py-3 font-medium ${ex.activo ? 'text-gray-800' : 'text-gray-400 line-through'}`}>
+                          {ex.nombre}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">
+                          {ex.area || <span className="italic text-gray-300">Sin área</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => toggleExamen(ex)}
+                            className={`text-xs px-2 py-1 rounded-full transition-colors ${
+                              ex.activo
+                                ? 'bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-700'
+                                : 'bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700'
+                            }`}
+                          >
+                            {ex.activo ? 'Activo' : 'Inactivo'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-          ))}
+          )}
+
+          <Modal abierto={modalExamen} onCerrar={() => { setModalExamen(false); formExamen.reset(); }} titulo="Agregar examen">
+            <form onSubmit={formExamen.handleSubmit(onSubmitExamen)} className="space-y-4">
+              <Input label="Nombre del examen *" error={formExamen.formState.errors.nombre?.message}
+                {...formExamen.register('nombre', { required: 'Requerido' })} />
+              <div>
+                <label className="label">Área</label>
+                <select className="input-field" {...formExamen.register('area')}>
+                  <option value="">Seleccionar área</option>
+                  {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <Button type="button" variant="secondary" className="flex-1"
+                  onClick={() => { setModalExamen(false); formExamen.reset(); }}>
+                  Cancelar
+                </Button>
+                <Button type="submit" loading={guardandoExamen} className="flex-1">Agregar</Button>
+              </div>
+            </form>
+          </Modal>
         </div>
       )}
 
-      {/* Modales */}
-      <ModalCrearSupervisor
-        abierto={modalCrearSupervisor}
-        onCerrar={() => setModalCrearSupervisor(false)}
-        onCreado={handleCrearSupervisor}
-      />
-
-      <ModalAsociarExistente
-        abierto={modalAsociar}
-        onCerrar={() => setModalAsociar(false)}
-        idsActuales={idsActuales}
-        onAsociado={handleAsociarExistente}
-      />
-
-      <ModalCredenciales credenciales={credenciales} onCerrar={() => setCredenciales(null)} />
-
-      <Modal abierto={modalExamen} onCerrar={() => { setModalExamen(false); reset(); }} titulo="Agregar examen">
-        <form onSubmit={handleSubmit(onSubmitExamen)} className="space-y-4">
-          <Input label="Nombre del examen *" error={errors.nombre?.message}
-            {...register('nombre', { required: 'Requerido' })} />
-          <div>
-            <label className="label">Área</label>
-            <select className="input-field" {...register('area')}>
-              <option value="">Seleccionar área</option>
-              {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
+      {/* ════ TAB: SUPERVISORES ════ */}
+      {tab === 'supervisores' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Personal supervisor</h3>
+              <p className="text-sm text-gray-400 mt-0.5">
+                Los estudiantes seleccionan al supervisor de guardia al crear cada registro diario.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => setModalAsociar(true)}>Asociar existente</Button>
+              <Button onClick={() => setModalCrearSupervisor(true)}>+ Crear supervisor</Button>
+            </div>
           </div>
-          <div className="flex gap-3 pt-2">
-            <Button type="button" variant="secondary" className="flex-1"
-              onClick={() => { setModalExamen(false); reset(); }}>
-              Cancelar
-            </Button>
-            <Button type="submit" loading={guardando} className="flex-1">Agregar</Button>
+
+          {entidad.personal.length === 0 ? (
+            <div className="card text-center py-10 text-gray-400">
+              <span className="text-4xl">👥</span>
+              <p className="mt-2 text-sm">No hay supervisores asociados a esta entidad</p>
+              <p className="text-xs mt-1">Crea un nuevo supervisor o asocia uno existente</p>
+            </div>
+          ) : (
+            <div className="card p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Nombre</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Correo</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Rol</th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {entidad.personal.map((p) => (
+                      <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-gray-800">
+                          {p.usuario.nombre} {p.usuario.apellido}
+                        </td>
+                        <td className="px-4 py-3 text-gray-500">{p.usuario.email}</td>
+                        <td className="px-4 py-3">
+                          {p.usuario.rol === 'docente' ? (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">Docente</span>
+                          ) : (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">Bacteriólogo</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => onEliminarPersonal(p.usuarioId)}
+                            disabled={eliminandoId === p.usuarioId}
+                            className="text-xs text-red-400 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors disabled:opacity-40"
+                          >
+                            {eliminandoId === p.usuarioId ? '...' : 'Quitar'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <ModalCrearSupervisor
+            abierto={modalCrearSupervisor}
+            onCerrar={() => setModalCrearSupervisor(false)}
+            onCreado={handleCrearSupervisor}
+          />
+          <ModalAsociarExistente
+            abierto={modalAsociar}
+            onCerrar={() => setModalAsociar(false)}
+            idsActuales={idsActuales}
+            onAsociado={handleAsociarExistente}
+          />
+          <ModalCredencialesSupervisor credenciales={credencialesSupervisor} onCerrar={() => setCredencialesSupervisor(null)} />
+        </div>
+      )}
+
+      {/* ════ TAB: ESTUDIANTES ════ */}
+      {tab === 'estudiantes' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">Estudiantes en esta entidad</h3>
+              <p className="text-sm text-gray-400 mt-0.5">Estudiantes asignados a {entidad.nombre} en el semestre activo.</p>
+            </div>
+            <Button onClick={() => {
+              formCrearEst.reset({ entidadId: id });
+              setModalCrearEst(true);
+            }}>+ Nuevo estudiante</Button>
           </div>
-        </form>
-      </Modal>
+
+          {estudiantesCargando ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-up-blue border-t-transparent" />
+            </div>
+          ) : estudiantes.length === 0 ? (
+            <div className="card text-center py-12 text-gray-400">
+              <span className="text-4xl">👨‍🎓</span>
+              <p className="mt-2 text-sm font-medium text-gray-500">No hay estudiantes asignados a esta entidad</p>
+              <p className="text-xs mt-1">Crea un estudiante nuevo o reasigna uno desde el panel de estudiantes</p>
+            </div>
+          ) : (
+            <div className="card p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Estudiante</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Documento</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Semestre</th>
+                      <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {estudiantes.map((est) => (
+                      <tr key={est.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-800">{est.usuario.nombre} {est.usuario.apellido}</p>
+                          <p className="text-xs text-gray-400">{est.usuario.email}</p>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{est.numeroDocumento}</td>
+                        <td className="px-4 py-3 capitalize">
+                          <span className="badge badge-blue">{est.semestre}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={est.usuario.activo ? 'badge badge-green' : 'badge badge-gray'}>
+                            {est.usuario.activo ? 'Activo' : 'Inactivo'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={() => abrirEditarEst(est)}
+                              className="p-1.5 text-gray-400 hover:text-up-blue hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Editar">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            {est.usuario.activo && (
+                              <button
+                                onClick={() => setEstudianteDesactivar(est)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Desactivar">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                    d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Modal crear estudiante */}
+          <Modal abierto={modalCrearEst} onCerrar={cerrarCrearEst} titulo="Registrar nuevo estudiante" ancho="max-w-2xl">
+            <FormularioEstudiante
+              {...propsFormEst}
+              modoEdicion={false}
+              guardando={guardandoEst}
+              onCerrar={cerrarCrearEst}
+              onSubmit={onCrearEst}
+              register={formCrearEst.register}
+              handleSubmit={formCrearEst.handleSubmit}
+              errors={formCrearEst.formState.errors}
+              control={formCrearEst.control}
+              setValue={formCrearEst.setValue}
+            />
+          </Modal>
+
+          {/* Modal editar estudiante */}
+          <Modal abierto={!!estudianteEditar} onCerrar={cerrarEditarEst} titulo="Editar estudiante" ancho="max-w-2xl">
+            <FormularioEstudiante
+              {...propsFormEst}
+              modoEdicion={true}
+              guardando={guardandoEst}
+              onCerrar={cerrarEditarEst}
+              onSubmit={onEditarEst}
+              register={formEditarEst.register}
+              handleSubmit={formEditarEst.handleSubmit}
+              errors={formEditarEst.formState.errors}
+              control={formEditarEst.control}
+              setValue={formEditarEst.setValue}
+            />
+          </Modal>
+
+          {/* Modal confirmar desactivar */}
+          <Modal abierto={!!estudianteDesactivar} onCerrar={() => setEstudianteDesactivar(null)} titulo="Desactivar estudiante">
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                ¿Estás seguro que deseas desactivar a{' '}
+                <span className="font-semibold text-gray-800">
+                  {estudianteDesactivar?.usuario?.nombre} {estudianteDesactivar?.usuario?.apellido}
+                </span>?
+              </p>
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                ⚠️ El estudiante perderá acceso al sistema. Sus registros se conservarán.
+              </p>
+              <div className="flex gap-3">
+                <Button type="button" variant="secondary" className="flex-1"
+                  onClick={() => setEstudianteDesactivar(null)}>
+                  Cancelar
+                </Button>
+                <button
+                  onClick={onDesactivarEst}
+                  disabled={desactivando}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {desactivando ? 'Desactivando...' : 'Sí, desactivar'}
+                </button>
+              </div>
+            </div>
+          </Modal>
+
+          <ModalCredencialesEstudiante credenciales={credencialesEst} onCerrar={() => setCredencialesEst(null)} />
+        </div>
+      )}
     </div>
   );
 };

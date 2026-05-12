@@ -32,33 +32,40 @@ const FormularioEntidad = ({ register, handleSubmit, errors, onSubmit, guardando
 
 const ModalConfirmar = ({ abierto, entidad, onConfirmar, onCerrar, cargando }) => {
   if (!entidad) return null;
-  const puedeEliminar = entidad._count.estudiantes === 0 && entidad._count.examenes === 0;
+  const tieneEstudiantes = entidad._count.estudiantes > 0;
+  const tieneExamenes = entidad._count.examenes > 0;
+  const tieneData = tieneEstudiantes || tieneExamenes;
   return (
-    <Modal abierto={abierto} onCerrar={onCerrar} titulo={puedeEliminar ? 'Eliminar entidad' : 'Desactivar entidad'}>
-      <div className="space-y-4">
+    <Modal abierto={abierto} onCerrar={onCerrar} titulo="Eliminar entidad">
+      <div className="space-y-3">
         <p className="text-sm text-gray-600">
-          ¿Estás seguro que deseas {puedeEliminar ? 'eliminar' : 'desactivar'}{' '}
+          ¿Estás seguro que deseas eliminar{' '}
           <span className="font-semibold text-gray-800">{entidad.nombre}</span>?
+          {' '}Esta acción no se puede deshacer.
         </p>
-        {puedeEliminar ? (
-          <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
-            🗑️ Esta entidad no tiene estudiantes ni exámenes. Se eliminará permanentemente y no podrá recuperarse.
-          </p>
-        ) : (
-          <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-            ⚠️ La entidad tiene datos asociados. Quedará inactiva y los registros y estudiantes se conservarán.
-          </p>
+        {tieneData && (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 space-y-1">
+            <p className="text-xs font-semibold text-red-700">Se eliminará o desvinculará lo siguiente:</p>
+            {tieneEstudiantes && (
+              <p className="text-xs text-red-600">
+                • <span className="font-medium">{entidad._count.estudiantes} estudiante{entidad._count.estudiantes !== 1 ? 's' : ''}</span> quedarán desvinculados de esta entidad (sus cuentas y registros diarios se conservan).
+              </p>
+            )}
+            {tieneExamenes && (
+              <p className="text-xs text-red-600">
+                • <span className="font-medium">{entidad._count.examenes} examen{entidad._count.examenes !== 1 ? 'es' : ''}</span> serán eliminados junto con sus registros en los diarios de práctica.
+              </p>
+            )}
+          </div>
         )}
-        <div className="flex gap-3">
+        <div className="flex gap-3 pt-1">
           <Button type="button" variant="secondary" className="flex-1" onClick={onCerrar}>Cancelar</Button>
           <button
             onClick={onConfirmar}
             disabled={cargando}
             className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
           >
-            {cargando
-              ? (puedeEliminar ? 'Eliminando...' : 'Desactivando...')
-              : (puedeEliminar ? 'Sí, eliminar' : 'Sí, desactivar')}
+            {cargando ? 'Eliminando...' : 'Sí, eliminar'}
           </button>
         </div>
       </div>
@@ -141,16 +148,9 @@ const Entidades = () => {
   const onEliminar = async () => {
     setEliminando(true);
     try {
-      const { data } = await eliminarEntidadApi(entidadEliminar.id);
-      if (data.data?.eliminado) {
-        setEntidades((prev) => prev.filter((e) => e.id !== entidadEliminar.id));
-        toast.success('Entidad eliminada permanentemente');
-      } else {
-        setEntidades((prev) => prev.map((e) =>
-          e.id === entidadEliminar.id ? { ...e, activo: false } : e
-        ));
-        toast.success('Entidad desactivada');
-      }
+      await eliminarEntidadApi(entidadEliminar.id);
+      setEntidades((prev) => prev.filter((e) => e.id !== entidadEliminar.id));
+      toast.success('Entidad eliminada permanentemente');
       setEntidadEliminar(null);
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al eliminar');
@@ -197,24 +197,13 @@ const Entidades = () => {
                 </button>
                 <button
                   onClick={(ev) => abrirEliminar(ev, e)}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    e._count.estudiantes === 0 && e._count.examenes === 0
-                      ? 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                      : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50'
-                  }`}
-                  title={e._count.estudiantes === 0 && e._count.examenes === 0 ? 'Eliminar' : 'Desactivar'}
+                  className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-red-600 hover:bg-red-50"
+                  title="Eliminar"
                 >
-                  {e._count.estudiantes === 0 && e._count.examenes === 0 ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                    </svg>
-                  )}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
                 </button>
               </div>
 

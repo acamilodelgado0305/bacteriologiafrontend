@@ -6,8 +6,6 @@ const navItems = [
   { to: '/dashboard',     label: 'Inicio',               icon: '🏠', roles: ['admin', 'docente', 'estudiante', 'bacteriologo'] },
   { to: '/registros',     label: 'Registro Diario',      icon: '📋', roles: ['estudiante'] },
   { to: '/firmas',        label: 'Firmas pendientes',    icon: '✍️', roles: ['docente', 'bacteriologo'] },
-  { to: '/estudiantes',   label: 'Estudiantes',          icon: '👨‍🎓', roles: ['admin', 'docente'] },
-  { to: '/supervisores',  label: 'Supervisores',         icon: '👥', roles: ['admin'] },
   { to: '/entidades',     label: 'Entidades',            icon: '🏥', roles: ['admin', 'docente'] },
   { to: '/cierres',       label: 'Archivo Semestres',    icon: '🗄️', roles: ['admin', 'docente'] },
   { to: '/reportes',      label: 'Reportes',             icon: '📊', roles: ['admin', 'docente', 'bacteriologo', 'estudiante'] },

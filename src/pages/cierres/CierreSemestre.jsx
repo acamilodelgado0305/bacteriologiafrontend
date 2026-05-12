@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { listarCierresApi, cerrarSemestreApi } from '../../services/cierreService';
+import { listarCierresApi, cerrarSemestreApi, eliminarCierreApi } from '../../services/cierreService';
 import { useAuth } from '../../context/AuthContext';
 
 const formatearFecha = (iso) =>
@@ -9,9 +9,34 @@ const formatearFecha = (iso) =>
     day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
+const ToggleOpcion = ({ activo, onChange, label, descripcion }) => (
+  <div className="flex items-start gap-3 py-2.5 border-b border-gray-100 last:border-0">
+    <button
+      type="button"
+      onClick={() => onChange(!activo)}
+      className={`relative mt-0.5 inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${activo ? 'bg-up-blue' : 'bg-gray-200'}`}
+    >
+      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform duration-200 ${activo ? 'translate-x-4' : 'translate-x-0'}`} />
+    </button>
+    <div>
+      <p className="text-sm font-medium text-gray-700">{label}</p>
+      <p className="text-xs text-gray-400 mt-0.5">{descripcion}</p>
+    </div>
+  </div>
+);
+
 const ModalCerrar = ({ onCancelar, onConfirmar, cerrando }) => {
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [conservar, setConservar] = useState({
+    docentes: true,
+    supervisores: true,
+    estudiantes: true,
+  });
+
+  const setOpcion = (key, val) => setConservar((prev) => ({ ...prev, [key]: val }));
+
+  const hayDesactivaciones = !conservar.docentes || !conservar.supervisores || !conservar.estudiantes;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -19,7 +44,7 @@ const ModalCerrar = ({ onCancelar, onConfirmar, cerrando }) => {
       toast.error('El nombre del cierre es requerido');
       return;
     }
-    onConfirmar({ nombre: nombre.trim(), descripcion: descripcion.trim() });
+    onConfirmar({ nombre: nombre.trim(), descripcion: descripcion.trim(), conservar });
   };
 
   return (
@@ -28,37 +53,76 @@ const ModalCerrar = ({ onCancelar, onConfirmar, cerrando }) => {
         <div className="p-6 border-b border-gray-100">
           <h3 className="text-lg font-bold text-gray-800">Cerrar Semestre</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Todos los registros activos serán archivados. Esta acción no se puede deshacer.
+            Los estudiantes y registros activos quedarán archivados en este cierre.
           </p>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Nombre y descripción */}
+          <div className="space-y-4">
+            <div>
+              <label className="label">Nombre del semestre *</label>
+              <input
+                type="text"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                placeholder="Ej: Semestre I - 2026"
+                disabled={cerrando}
+                className="input-field"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="label">Descripción (opcional)</label>
+              <textarea
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder="Observaciones del cierre..."
+                disabled={cerrando}
+                rows={2}
+                className="input-field resize-none"
+              />
+            </div>
+          </div>
+
+          {/* Opciones de conservar */}
           <div>
-            <label className="label">Nombre del semestre *</label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Ej: Semestre I - 2026"
-              disabled={cerrando}
-              className="input-field"
-              autoFocus
-            />
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+              ¿Qué cuentas conservar para el próximo semestre?
+            </p>
+            <div className="bg-gray-50 rounded-xl px-4 py-1">
+              <ToggleOpcion
+                activo={conservar.docentes}
+                onChange={(v) => setOpcion('docentes', v)}
+                label="Docentes"
+                descripcion={conservar.docentes ? 'Sus cuentas permanecen activas.' : 'Sus cuentas serán desactivadas al cerrar.'}
+              />
+              <ToggleOpcion
+                activo={conservar.supervisores}
+                onChange={(v) => setOpcion('supervisores', v)}
+                label="Supervisores (bacteriólogos)"
+                descripcion={conservar.supervisores ? 'Sus cuentas permanecen activas.' : 'Sus cuentas serán desactivadas al cerrar.'}
+              />
+              <ToggleOpcion
+                activo={conservar.estudiantes}
+                onChange={(v) => setOpcion('estudiantes', v)}
+                label="Usuarios estudiantes"
+                descripcion={conservar.estudiantes ? 'Sus cuentas permanecen activas y pueden re-matricularse.' : 'Sus cuentas serán desactivadas al cerrar.'}
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-2 px-1">
+              Los perfiles de estudiante y sus registros siempre se archivan, independiente de esta configuración.
+            </p>
           </div>
-          <div>
-            <label className="label">Descripción (opcional)</label>
-            <textarea
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              placeholder="Observaciones del cierre..."
-              disabled={cerrando}
-              rows={3}
-              className="input-field resize-none"
-            />
-          </div>
-          <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-800">
-            ⚠️ Esta acción archivará todos los estudiantes y registros activos. Las entidades y supervisores se mantienen intactos.
-          </div>
-          <div className="flex gap-3 pt-2">
+
+          {/* Advertencia */}
+          {hayDesactivaciones && (
+            <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-800">
+              ⚠️ Las cuentas desactivadas no podrán iniciar sesión. Un administrador puede reactivarlas desde el panel de usuarios.
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
             <button
               type="button"
               onClick={onCancelar}
@@ -81,12 +145,73 @@ const ModalCerrar = ({ onCancelar, onConfirmar, cerrando }) => {
   );
 };
 
+const ModalEliminarCierre = ({ cierre, onCancelar, onConfirmar, eliminando }) => {
+  const [confirmText, setConfirmText] = useState('');
+  const normalizar = (s) => (s || '').replace(/\s+/g, ' ').trim();
+  const confirmado = normalizar(confirmText) === normalizar(cierre?.nombre);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="p-6 border-b border-gray-100">
+          <h3 className="text-lg font-bold text-red-700">Eliminar cierre permanentemente</h3>
+          <p className="text-sm text-gray-500 mt-1">Esta acción no se puede deshacer.</p>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="bg-red-50 rounded-xl p-4 space-y-1.5 text-sm text-red-800">
+            <p className="font-semibold">Se eliminará de forma permanente:</p>
+            <ul className="list-disc list-inside space-y-1 text-red-700">
+              <li>{cierre?.totalEstudiantes} estudiante{cierre?.totalEstudiantes !== 1 ? 's' : ''} archivado{cierre?.totalEstudiantes !== 1 ? 's' : ''} y sus cuentas</li>
+              <li>{cierre?.totalRegistros} registro{cierre?.totalRegistros !== 1 ? 's' : ''} diario{cierre?.totalRegistros !== 1 ? 's' : ''} y sus exámenes</li>
+              <li>Toda la información del semestre <strong>{cierre?.nombre}</strong></li>
+            </ul>
+            <p className="text-xs text-red-600 mt-2">
+              Las cuentas de estudiantes re-matriculados en el semestre activo no serán eliminadas.
+            </p>
+          </div>
+
+          <div>
+            <label className="label text-sm">
+              Escribe <span className="font-semibold text-gray-800">{cierre?.nombre}</span> para confirmar
+            </label>
+            <input
+              type="text"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={cierre?.nombre}
+              disabled={eliminando}
+              className="input-field mt-1"
+              autoFocus
+            />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onCancelar} disabled={eliminando} className="btn-secondary flex-1">
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={onConfirmar}
+              disabled={eliminando || !confirmado}
+              className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              {eliminando ? 'Eliminando...' : 'Eliminar definitivamente'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const CierreSemestre = () => {
   const { usuario } = useAuth();
   const [cierres, setCierres] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [cerrando, setCerrando] = useState(false);
+  const [cierreEliminar, setCierreEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
 
   const esAdmin = usuario?.rol === 'admin' || usuario?.esAdminDocente;
 
@@ -104,17 +229,40 @@ const CierreSemestre = () => {
 
   useEffect(() => { cargar(); }, []);
 
-  const handleCerrar = async ({ nombre, descripcion }) => {
+  const handleCerrar = async ({ nombre, descripcion, conservar }) => {
     setCerrando(true);
     try {
-      const { data } = await cerrarSemestreApi({ nombre, descripcion });
+      const { data } = await cerrarSemestreApi({ nombre, descripcion, conservar });
+      const { desactivados } = data.data;
       toast.success(data.mensaje || 'Semestre cerrado exitosamente');
+      const extras = [
+        desactivados.docentes > 0 && `${desactivados.docentes} docente(s) desactivado(s)`,
+        desactivados.supervisores > 0 && `${desactivados.supervisores} bacteriólogo(s) desactivado(s)`,
+        desactivados.estudiantes > 0 && `${desactivados.estudiantes} estudiante(s) desactivado(s)`,
+      ].filter(Boolean);
+      if (extras.length > 0) {
+        extras.forEach((msg) => toast(msg, { icon: '⚠️' }));
+      }
       setMostrarModal(false);
       cargar();
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al cerrar el semestre');
     } finally {
       setCerrando(false);
+    }
+  };
+
+  const handleEliminar = async () => {
+    setEliminando(true);
+    try {
+      await eliminarCierreApi(cierreEliminar.id);
+      setCierres((prev) => prev.filter((c) => c.id !== cierreEliminar.id));
+      setCierreEliminar(null);
+      toast.success('Cierre eliminado permanentemente');
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al eliminar el cierre');
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -172,37 +320,48 @@ const CierreSemestre = () => {
         ) : (
           <div className="space-y-3">
             {cierres.map((c) => (
-              <Link
-                key={c.id}
-                to={`/cierres/${c.id}`}
-                className="card flex items-center gap-4 hover:shadow-md transition-shadow group"
-              >
-                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-up-blue/10 transition-colors">
-                  <span className="text-2xl">📁</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-800 group-hover:text-up-blue transition-colors">
-                    {c.nombre}
-                  </p>
-                  {c.descripcion && (
-                    <p className="text-sm text-gray-500 truncate">{c.descripcion}</p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Cerrado el {formatearFecha(c.fechaCierre)}
-                  </p>
-                </div>
-                <div className="flex gap-3 flex-shrink-0 text-right">
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-gray-800">{c.totalEstudiantes}</p>
-                    <p className="text-xs text-gray-400">estudiantes</p>
+              <div key={c.id} className="card flex items-center gap-4 hover:shadow-md transition-shadow group">
+                <Link to={`/cierres/${c.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0 group-hover:bg-up-blue/10 transition-colors">
+                    <span className="text-2xl">📁</span>
                   </div>
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-gray-800">{c.totalRegistros}</p>
-                    <p className="text-xs text-gray-400">registros</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-gray-800 group-hover:text-up-blue transition-colors">
+                      {c.nombre}
+                    </p>
+                    {c.descripcion && (
+                      <p className="text-sm text-gray-500 truncate">{c.descripcion}</p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Cerrado el {formatearFecha(c.fechaCierre)}
+                    </p>
                   </div>
-                  <span className="text-gray-300 self-center">›</span>
-                </div>
-              </Link>
+                  <div className="flex gap-3 flex-shrink-0 text-right">
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-gray-800">{c.totalEstudiantes}</p>
+                      <p className="text-xs text-gray-400">estudiantes</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-lg font-bold text-gray-800">{c.totalRegistros}</p>
+                      <p className="text-xs text-gray-400">registros</p>
+                    </div>
+                    <span className="text-gray-300 self-center">›</span>
+                  </div>
+                </Link>
+                {esAdmin && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setCierreEliminar(c); }}
+                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                    title="Eliminar cierre"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}
@@ -213,6 +372,15 @@ const CierreSemestre = () => {
           onCancelar={() => setMostrarModal(false)}
           onConfirmar={handleCerrar}
           cerrando={cerrando}
+        />
+      )}
+
+      {cierreEliminar && (
+        <ModalEliminarCierre
+          cierre={cierreEliminar}
+          onCancelar={() => setCierreEliminar(null)}
+          onConfirmar={handleEliminar}
+          eliminando={eliminando}
         />
       )}
     </div>

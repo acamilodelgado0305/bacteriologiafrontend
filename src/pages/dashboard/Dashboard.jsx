@@ -23,7 +23,7 @@ const Tarjeta = ({ icono, color, valor, label, cargando }) => (
 const ItemActividad = ({ registro, esEstudiante }) => {
   const total = registro.examenes?.reduce((s, e) => s + e.cantidad, 0) || 0;
   const nombre = !esEstudiante
-    ? `${registro.estudiante?.usuario?.nombre || ''} ${registro.estudiante?.usuario?.apellido || ''}`
+    ? `${registro.estudiante?.usuario?.nombre || ''} ${registro.estudiante?.usuario?.apellido || ''}`.trim()
     : null;
 
   return (
@@ -49,14 +49,14 @@ const ItemActividad = ({ registro, esEstudiante }) => {
 };
 
 const Dashboard = () => {
-  const { usuario, esEstudiante, esAdmin, esDocente } = useAuth();
+  const { usuario, esEstudiante, esAdmin, esDocente, esBacteriologo } = useAuth();
   const [stats, setStats] = useState(null);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     api.get('/estadisticas')
       .then(({ data }) => setStats(data.data))
-      .catch(() => {})
+      .catch(() => setStats({}))
       .finally(() => setCargando(false));
   }, []);
 
@@ -64,35 +64,148 @@ const Dashboard = () => {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
+  const esSupervisor = esDocente || esBacteriologo;
+  const rolLabel = esDocente ? 'docente supervisor' : esBacteriologo ? 'bacteriólogo supervisor' : '';
+
+  /* ── Tarjetas según perfil ── */
+  const renderTarjetas = () => {
+    if (esEstudiante) {
+      return (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Tarjeta icono="🧪" color="bg-blue-50 text-blue-700"     valor={stats?.examenesHoy}      label="Exámenes hoy"        cargando={cargando} />
+          <Tarjeta icono="📅" color="bg-green-50 text-green-700"   valor={stats?.examenesSemana}   label="Esta semana"         cargando={cargando} />
+          <Tarjeta icono="📊" color="bg-purple-50 text-purple-700" valor={stats?.examenesMes}      label="Este mes"            cargando={cargando} />
+          <Tarjeta icono="🏥" color="bg-orange-50 text-orange-700" valor={stats?.diasEnPractica}   label="Días en práctica"    cargando={cargando} />
+        </div>
+      );
+    }
+
+    if (esAdmin) {
+      return (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <Tarjeta icono="👨‍🎓" color="bg-blue-50 text-blue-700"    valor={stats?.totalEstudiantes} label="Estudiantes activos"         cargando={cargando} />
+          <Tarjeta icono="👥"  color="bg-indigo-50 text-indigo-700" valor={stats?.totalUsuarios}    label="Usuarios en plataforma"      cargando={cargando} />
+          <Tarjeta icono="✍️"  color="bg-amber-50 text-amber-700"   valor={stats?.pendientesFirma}  label="Pendientes de firma"         cargando={cargando} />
+          <Tarjeta icono="✅"  color="bg-green-50 text-green-700"   valor={stats?.firmadosMes}      label="Completados este mes"        cargando={cargando} />
+        </div>
+      );
+    }
+
+    if (esSupervisor) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Tarjeta icono="👨‍🎓" color="bg-blue-50 text-blue-700"   valor={stats?.totalEstudiantes} label="Estudiantes a mi cargo"      cargando={cargando} />
+          <Tarjeta icono="✍️"  color="bg-amber-50 text-amber-700" valor={stats?.pendientesFirma}  label="Pendientes de mi firma"      cargando={cargando} />
+          <Tarjeta icono="✅"  color="bg-green-50 text-green-700" valor={stats?.firmadosMes}      label="Firmados por mí este mes"    cargando={cargando} />
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  /* ── Accesos rápidos según perfil ── */
+  const renderAccesos = () => {
+    if (esEstudiante) {
+      return (
+        <div className="space-y-3">
+          <Link to="/registros" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
+            <span className="text-xl">📋</span>
+            <div>
+              <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Registrar exámenes hoy</p>
+              <p className="text-xs text-gray-400">Llena tu registro diario</p>
+            </div>
+          </Link>
+          <Link to="/reportes" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
+            <span className="text-xl">📊</span>
+            <div>
+              <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Ver mis reportes</p>
+              <p className="text-xs text-gray-400">Resumen semanal, mensual o semestral</p>
+            </div>
+          </Link>
+        </div>
+      );
+    }
+
+    if (esAdmin) {
+      return (
+        <div className="space-y-2">
+          <Link to="/entidades" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
+            <span className="text-xl">🏥</span>
+            <div>
+              <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Gestionar entidades</p>
+              <p className="text-xs text-gray-400">{stats?.totalEstudiantes ?? 0} estudiantes activos</p>
+            </div>
+          </Link>
+          <Link to="/usuarios" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
+            <span className="text-xl">👥</span>
+            <div>
+              <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Panel de usuarios</p>
+              <p className="text-xs text-gray-400">{stats?.totalUsuarios ?? 0} usuarios registrados</p>
+            </div>
+          </Link>
+          <Link to="/firmas" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
+            <span className="text-xl">✍️</span>
+            <div>
+              <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Firmas pendientes</p>
+              <p className="text-xs text-gray-400">{stats?.pendientesFirma ?? 0} registro{stats?.pendientesFirma !== 1 ? 's' : ''} por firmar</p>
+            </div>
+          </Link>
+          <Link to="/reportes" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
+            <span className="text-xl">📊</span>
+            <div>
+              <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Generar reportes</p>
+              <p className="text-xs text-gray-400">Semanales, mensuales o semestrales</p>
+            </div>
+          </Link>
+        </div>
+      );
+    }
+
+    if (esSupervisor) {
+      return (
+        <div className="space-y-2">
+          <Link to="/firmas" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
+            <span className="text-xl">✍️</span>
+            <div>
+              <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Mis firmas pendientes</p>
+              <p className="text-xs text-gray-400">
+                {stats?.pendientesFirma ?? 0} registro{stats?.pendientesFirma !== 1 ? 's' : ''} esperando tu firma
+              </p>
+            </div>
+          </Link>
+          <Link to="/reportes" className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
+            <span className="text-xl">📊</span>
+            <div>
+              <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Ver reportes</p>
+              <p className="text-xs text-gray-400">Actividad de mis estudiantes supervisados</p>
+            </div>
+          </Link>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-gray-800">Bienvenido, {usuario?.nombre} 👋</h2>
         <p className="text-gray-500 text-sm mt-1 capitalize">{hoy}</p>
+        {esSupervisor && (
+          <p className="text-xs text-gray-400 mt-0.5">Ingresaste como {rolLabel}</p>
+        )}
       </div>
 
-      {/* Tarjetas de estadísticas */}
-      {esEstudiante ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Tarjeta icono="🧪" color="bg-blue-50 text-blue-700"   valor={stats?.examenesHoy}       label="Exámenes hoy"        cargando={cargando} />
-          <Tarjeta icono="📅" color="bg-green-50 text-green-700" valor={stats?.examenesSemana}    label="Esta semana"         cargando={cargando} />
-          <Tarjeta icono="📊" color="bg-purple-50 text-purple-700" valor={stats?.examenesMes}     label="Este mes"            cargando={cargando} />
-          <Tarjeta icono="🏥" color="bg-orange-50 text-orange-700" valor={stats?.diasEnPractica}  label="Días en práctica"    cargando={cargando} />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Tarjeta icono="👨‍🎓" color="bg-blue-50 text-blue-700"    valor={stats?.totalEstudiantes} label="Estudiantes activos"         cargando={cargando} />
-          <Tarjeta icono="✍️"  color="bg-amber-50 text-amber-700"  valor={stats?.pendientesFirma}  label="Pendientes de firma"         cargando={cargando} />
-          <Tarjeta icono="✅"  color="bg-green-50 text-green-700"  valor={stats?.firmadosMes}      label="Registros completados (mes)" cargando={cargando} />
-        </div>
-      )}
+      {renderTarjetas()}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Actividad reciente */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-800">Actividad reciente</h3>
-            {(esAdmin || esDocente) && (
+            {(esAdmin || esSupervisor) && (
               <Link to="/reportes" className="text-xs text-up-blue hover:underline">Ver reportes →</Link>
             )}
             {esEstudiante && (
@@ -101,7 +214,7 @@ const Dashboard = () => {
           </div>
           {cargando ? (
             <div className="space-y-3">
-              {[1,2,3].map((i) => (
+              {[1, 2, 3].map((i) => (
                 <div key={i} className="h-10 bg-gray-50 rounded-lg animate-pulse" />
               ))}
             </div>
@@ -124,67 +237,17 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Panel derecho */}
+        {/* Accesos rápidos / escenario */}
         <div className="card">
           <h3 className="font-semibold text-gray-800 mb-4">
             {esEstudiante ? 'Mi escenario de práctica' : 'Accesos rápidos'}
           </h3>
-          {esEstudiante ? (
-            cargando ? (
-              <div className="space-y-2">
-                {[1,2].map((i) => <div key={i} className="h-8 bg-gray-50 rounded-lg animate-pulse" />)}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <Link to="/registros"
-                  className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
-                  <span className="text-xl">📋</span>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Registrar exámenes hoy</p>
-                    <p className="text-xs text-gray-400">Llena tu registro diario</p>
-                  </div>
-                </Link>
-                <Link to="/reportes"
-                  className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
-                  <span className="text-xl">📊</span>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Ver mis reportes</p>
-                    <p className="text-xs text-gray-400">Resumen semanal, mensual o semestral</p>
-                  </div>
-                </Link>
-              </div>
-            )
-          ) : (
+          {cargando ? (
             <div className="space-y-2">
-              {(esAdmin || esDocente) && (
-                <Link to="/estudiantes"
-                  className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
-                  <span className="text-xl">👨‍🎓</span>
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Gestionar estudiantes</p>
-                    <p className="text-xs text-gray-400">{stats?.totalEstudiantes ?? 0} estudiantes activos</p>
-                  </div>
-                </Link>
-              )}
-              <Link to="/firmas"
-                className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
-                <span className="text-xl">✍️</span>
-                <div>
-                  <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Firmas pendientes</p>
-                  <p className="text-xs text-gray-400">
-                    {stats?.pendientesFirma ?? 0} registro{stats?.pendientesFirma !== 1 ? 's' : ''} por firmar
-                  </p>
-                </div>
-              </Link>
-              <Link to="/reportes"
-                className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:border-up-blue hover:bg-blue-50 transition-colors group">
-                <span className="text-xl">📊</span>
-                <div>
-                  <p className="text-sm font-medium text-gray-800 group-hover:text-up-blue">Generar reportes</p>
-                  <p className="text-xs text-gray-400">Semanales, mensuales o semestrales</p>
-                </div>
-              </Link>
+              {[1, 2].map((i) => <div key={i} className="h-14 bg-gray-50 rounded-xl animate-pulse" />)}
             </div>
+          ) : (
+            renderAccesos()
           )}
         </div>
       </div>
