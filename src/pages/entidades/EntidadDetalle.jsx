@@ -16,7 +16,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 
-const AREAS = ['Hematología', 'Inmunología', 'Microbiología', 'Parasitología', 'Química Clínica', 'Uroanálisis', 'Banco de Sangre', 'Otro'];
+const AREAS = ['Hematología', 'Inmunología', 'Microbiología', 'Parasitología', 'Bioquimica', 'Uroanálisis', 'Banco de Sangre','Toxicologicos','Examanes Especiales','Obsorción Atomica','Biologia Molecular', 'Tamizaje Neonatal','Otro'];
 
 const generarPassword = (documento) => {
   const d = (documento || '').replace(/\D/g, '');
