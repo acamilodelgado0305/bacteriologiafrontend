@@ -73,9 +73,16 @@ const ModalConfirmar = ({ abierto, entidad, onConfirmar, onCerrar, cargando }) =
   );
 };
 
+const FILTROS_SEMESTRE = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'noveno', label: 'Noveno' },
+  { value: 'decimo', label: 'Décimo' },
+];
+
 const Entidades = () => {
   const [entidades, setEntidades] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [filtroSemestre, setFiltroSemestre] = useState('todos');
   const [modalCrear, setModalCrear] = useState(false);
   const [entidadEditar, setEntidadEditar] = useState(null);
   const [entidadEliminar, setEntidadEliminar] = useState(null);
@@ -159,6 +166,10 @@ const Entidades = () => {
     }
   };
 
+  const entidadesFiltradas = filtroSemestre === 'todos'
+    ? entidades
+    : entidades.filter((e) => e.semestreActivo === filtroSemestre);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -169,19 +180,45 @@ const Entidades = () => {
         <Button onClick={() => setModalCrear(true)}>+ Nueva entidad</Button>
       </div>
 
+      {/* Filtro por semestre */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-gray-500 font-medium">Semestre:</span>
+        {FILTROS_SEMESTRE.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setFiltroSemestre(value)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              filtroSemestre === value
+                ? 'bg-up-blue text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+        {filtroSemestre !== 'todos' && (
+          <span className="text-xs text-gray-400 ml-1">
+            {entidadesFiltradas.length} entidad{entidadesFiltradas.length !== 1 ? 'es' : ''}
+          </span>
+        )}
+      </div>
+
       {cargando ? (
         <div className="flex justify-center py-16">
           <div className="animate-spin rounded-full h-8 w-8 border-4 border-up-blue border-t-transparent" />
         </div>
-      ) : entidades.length === 0 ? (
+      ) : entidadesFiltradas.length === 0 ? (
         <div className="card text-center py-16 text-gray-400">
           <span className="text-5xl">🏥</span>
-          <p className="mt-3 font-medium text-gray-500">No hay entidades registradas</p>
-          <p className="text-sm mt-1">Crea la primera entidad de práctica</p>
+          <p className="mt-3 font-medium text-gray-500">
+            {filtroSemestre === 'todos' ? 'No hay entidades registradas' : `No hay entidades con estudiantes de ${filtroSemestre} semestre`}
+          </p>
+          {filtroSemestre === 'todos' && <p className="text-sm mt-1">Crea la primera entidad de práctica</p>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {entidades.map((e) => (
+          {entidadesFiltradas.map((e) => (
             <div key={e.id} className="card hover:shadow-md transition-shadow border hover:border-blue-200 relative group">
               {/* Botones de acción */}
               <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -210,9 +247,16 @@ const Entidades = () => {
               <Link to={`/entidades/${e.id}`} className="block">
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center text-xl">🏥</div>
-                  <span className={e.activo ? 'badge badge-green' : 'badge badge-gray'}>
-                    {e.activo ? 'Activa' : 'Inactiva'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {e.semestreActivo && (
+                      <span className={`badge ${e.semestreActivo === 'noveno' ? 'badge-blue' : 'badge-purple'}`}>
+                        {e.semestreActivo === 'noveno' ? '9no' : '10mo'}
+                      </span>
+                    )}
+                    <span className={e.activo ? 'badge badge-green' : 'badge badge-gray'}>
+                      {e.activo ? 'Activa' : 'Inactiva'}
+                    </span>
+                  </div>
                 </div>
                 <h3 className="font-semibold text-gray-800 mb-1 pr-16">{e.nombre}</h3>
                 {e.ciudad && (

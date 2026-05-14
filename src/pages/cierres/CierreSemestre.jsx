@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { listarCierresApi, cerrarSemestreApi, eliminarCierreApi } from '../../services/cierreService';
+import { listarEstudiantesApi } from '../../services/estudianteService';
 import { useAuth } from '../../context/AuthContext';
 
 const formatearFecha = (iso) =>
@@ -25,110 +26,274 @@ const ToggleOpcion = ({ activo, onChange, label, descripcion }) => (
   </div>
 );
 
+const GrupoEstudiantes = ({ label, lista, seleccionados, onToggle, onToggleGrupo }) => {
+  if (lista.length === 0) return null;
+  const ids = lista.map((e) => e.id);
+  const todosSeleccionados = ids.every((id) => seleccionados.has(id));
+  const algunoSeleccionado = ids.some((id) => seleccionados.has(id));
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          {label} ({lista.length})
+        </span>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => onToggleGrupo(ids, true)} className="text-xs text-up-blue hover:underline">
+            todos
+          </button>
+          <span className="text-gray-300">·</span>
+          <button type="button" onClick={() => onToggleGrupo(ids, false)} className="text-xs text-gray-400 hover:underline">
+            ninguno
+          </button>
+        </div>
+      </div>
+      <div className="bg-gray-50 rounded-xl divide-y divide-gray-100">
+        {lista.map((e) => (
+          <label
+            key={e.id}
+            className="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-100 transition-colors first:rounded-t-xl last:rounded-b-xl"
+          >
+            <input
+              type="checkbox"
+              checked={seleccionados.has(e.id)}
+              onChange={() => onToggle(e.id)}
+              className="w-4 h-4 accent-up-blue flex-shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-700 truncate">
+                {e.usuario.nombre} {e.usuario.apellido}
+              </p>
+              <p className="text-xs text-gray-400">{e.numeroDocumento}</p>
+            </div>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const ModalCerrar = ({ onCancelar, onConfirmar, cerrando }) => {
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
-  const [conservar, setConservar] = useState({
-    docentes: true,
-    supervisores: true,
-    estudiantes: true,
-  });
+  const [conservar, setConservar] = useState({ docentes: true, supervisores: true });
+  const [estudiantesOpcion, setEstudiantesOpcion] = useState('todos');
+  const [semestreDestino, setSemestreDestino] = useState('decimo');
+  const [listaEstudiantes, setListaEstudiantes] = useState([]);
+  const [seleccionados, setSeleccionados] = useState(new Set());
+  const [cargandoEstudiantes, setCargandoEstudiantes] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
 
   const setOpcion = (key, val) => setConservar((prev) => ({ ...prev, [key]: val }));
+  const hayDesactivaciones = !conservar.docentes || !conservar.supervisores || estudiantesOpcion !== 'todos';
 
-  const hayDesactivaciones = !conservar.docentes || !conservar.supervisores || !conservar.estudiantes;
+  useEffect(() => {
+    if (estudiantesOpcion !== 'manual') return;
+    if (listaEstudiantes.length > 0) return;
+    setCargandoEstudiantes(true);
+    listarEstudiantesApi()
+      .then(({ data }) => {
+        const lista = data.data || [];
+        setListaEstudiantes(lista);
+        setSeleccionados(new Set(lista.map((e) => e.id)));
+      })
+      .catch(() => toast.error('Error al cargar la lista de estudiantes'))
+      .finally(() => setCargandoEstudiantes(false));
+  }, [estudiantesOpcion]);
+
+  const toggleEstudiante = (id) => {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleGrupo = (ids, activar) => {
+    setSeleccionados((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (activar ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!nombre.trim()) {
-      toast.error('El nombre del cierre es requerido');
-      return;
-    }
-    onConfirmar({ nombre: nombre.trim(), descripcion: descripcion.trim(), conservar });
+    if (!nombre.trim()) { toast.error('El nombre del cierre es requerido'); return; }
+    onConfirmar({
+      nombre: nombre.trim(),
+      descripcion: descripcion.trim(),
+      conservar: {
+        ...conservar,
+        estudiantesOpcion,
+        ...(estudiantesOpcion !== 'ninguno' ? { semestreDestino } : {}),
+        ...(estudiantesOpcion === 'manual' ? { estudiantesIds: [...seleccionados] } : {}),
+      },
+    });
   };
+
+  const filtrados = listaEstudiantes.filter((e) => {
+    const q = busqueda.toLowerCase();
+    return (
+      e.usuario.nombre.toLowerCase().includes(q) ||
+      e.usuario.apellido.toLowerCase().includes(q) ||
+      (e.numeroDocumento || '').includes(q)
+    );
+  });
+  const novenos = filtrados.filter((e) => e.semestre === 'noveno');
+  const decimos = filtrados.filter((e) => e.semestre === 'decimo');
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="p-6 border-b border-gray-100">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="p-6 border-b border-gray-100 flex-shrink-0">
           <h3 className="text-lg font-bold text-gray-800">Cerrar Semestre</h3>
           <p className="text-sm text-gray-500 mt-1">
             Los estudiantes y registros activos quedarán archivados en este cierre.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Nombre y descripción */}
-          <div className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="p-6 space-y-5 overflow-y-auto flex-1">
+            {/* Nombre y descripción */}
+            <div className="space-y-4">
+              <div>
+                <label className="label">Nombre del semestre *</label>
+                <input
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Ej: Semestre I - 2026"
+                  disabled={cerrando}
+                  className="input-field"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="label">Descripción (opcional)</label>
+                <textarea
+                  value={descripcion}
+                  onChange={(e) => setDescripcion(e.target.value)}
+                  placeholder="Observaciones del cierre..."
+                  disabled={cerrando}
+                  rows={2}
+                  className="input-field resize-none"
+                />
+              </div>
+            </div>
+
+            {/* Toggles docentes y supervisores */}
             <div>
-              <label className="label">Nombre del semestre *</label>
-              <input
-                type="text"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="Ej: Semestre I - 2026"
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                ¿Qué cuentas conservar para el próximo semestre?
+              </p>
+              <div className="bg-gray-50 rounded-xl px-4 py-1">
+                <ToggleOpcion
+                  activo={conservar.docentes}
+                  onChange={(v) => setOpcion('docentes', v)}
+                  label="Docentes"
+                  descripcion={conservar.docentes ? 'Sus cuentas permanecen activas.' : 'Sus cuentas serán desactivadas al cerrar.'}
+                />
+                <ToggleOpcion
+                  activo={conservar.supervisores}
+                  onChange={(v) => setOpcion('supervisores', v)}
+                  label="Supervisores (bacteriólogos)"
+                  descripcion={conservar.supervisores ? 'Sus cuentas permanecen activas.' : 'Sus cuentas serán desactivadas al cerrar.'}
+                />
+              </div>
+            </div>
+
+            {/* Select estudiantes */}
+            <div>
+              <label className="label">Estudiantes</label>
+              <select
+                value={estudiantesOpcion}
+                onChange={(e) => setEstudiantesOpcion(e.target.value)}
                 disabled={cerrando}
                 className="input-field"
-                autoFocus
-              />
+              >
+                <option value="todos">Conservar todos</option>
+                <option value="noveno">Conservar solo Noveno semestre</option>
+                <option value="decimo">Conservar solo Décimo semestre</option>
+                <option value="ninguno">Desactivar todos</option>
+                <option value="manual">Selección manual...</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1.5 px-1">
+                Los perfiles y registros siempre se archivan. Esto solo afecta el acceso al sistema.
+              </p>
             </div>
-            <div>
-              <label className="label">Descripción (opcional)</label>
-              <textarea
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
-                placeholder="Observaciones del cierre..."
-                disabled={cerrando}
-                rows={2}
-                className="input-field resize-none"
-              />
-            </div>
+
+            {/* Semestre destino para conservados */}
+            {estudiantesOpcion !== 'ninguno' && (
+              <div>
+                <label className="label">¿En qué semestre quedan los estudiantes conservados?</label>
+                <select
+                  value={semestreDestino}
+                  onChange={(e) => setSemestreDestino(e.target.value)}
+                  disabled={cerrando}
+                  className="input-field"
+                >
+                  <option value="noveno">Noveno semestre</option>
+                  <option value="decimo">Décimo semestre</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1.5 px-1">
+                  Su semestre se actualizará al iniciar el siguiente período.
+                </p>
+              </div>
+            )}
+
+            {/* Lista manual */}
+            {estudiantesOpcion === 'manual' && (
+              <div className="space-y-3">
+                {cargandoEstudiantes ? (
+                  <div className="flex justify-center py-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-up-blue border-t-transparent" />
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      placeholder="Buscar por nombre o documento..."
+                      className="input-field"
+                    />
+                    <p className="text-xs text-gray-500 px-1">
+                      Marcados conservan acceso · {seleccionados.size} de {listaEstudiantes.length} seleccionados
+                    </p>
+                    <GrupoEstudiantes
+                      label="Noveno semestre"
+                      lista={novenos}
+                      seleccionados={seleccionados}
+                      onToggle={toggleEstudiante}
+                      onToggleGrupo={toggleGrupo}
+                    />
+                    <GrupoEstudiantes
+                      label="Décimo semestre"
+                      lista={decimos}
+                      seleccionados={seleccionados}
+                      onToggle={toggleEstudiante}
+                      onToggleGrupo={toggleGrupo}
+                    />
+                    {filtrados.length === 0 && (
+                      <p className="text-sm text-gray-400 text-center py-4">Sin resultados</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Advertencia */}
+            {hayDesactivaciones && (
+              <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-800">
+                ⚠️ Las cuentas desactivadas no podrán iniciar sesión. Un administrador puede reactivarlas desde el panel de usuarios.
+              </div>
+            )}
           </div>
 
-          {/* Opciones de conservar */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              ¿Qué cuentas conservar para el próximo semestre?
-            </p>
-            <div className="bg-gray-50 rounded-xl px-4 py-1">
-              <ToggleOpcion
-                activo={conservar.docentes}
-                onChange={(v) => setOpcion('docentes', v)}
-                label="Docentes"
-                descripcion={conservar.docentes ? 'Sus cuentas permanecen activas.' : 'Sus cuentas serán desactivadas al cerrar.'}
-              />
-              <ToggleOpcion
-                activo={conservar.supervisores}
-                onChange={(v) => setOpcion('supervisores', v)}
-                label="Supervisores (bacteriólogos)"
-                descripcion={conservar.supervisores ? 'Sus cuentas permanecen activas.' : 'Sus cuentas serán desactivadas al cerrar.'}
-              />
-              <ToggleOpcion
-                activo={conservar.estudiantes}
-                onChange={(v) => setOpcion('estudiantes', v)}
-                label="Usuarios estudiantes"
-                descripcion={conservar.estudiantes ? 'Sus cuentas permanecen activas y pueden re-matricularse.' : 'Sus cuentas serán desactivadas al cerrar.'}
-              />
-            </div>
-            <p className="text-xs text-gray-400 mt-2 px-1">
-              Los perfiles de estudiante y sus registros siempre se archivan, independiente de esta configuración.
-            </p>
-          </div>
-
-          {/* Advertencia */}
-          {hayDesactivaciones && (
-            <div className="bg-amber-50 rounded-xl p-3 text-sm text-amber-800">
-              ⚠️ Las cuentas desactivadas no podrán iniciar sesión. Un administrador puede reactivarlas desde el panel de usuarios.
-            </div>
-          )}
-
-          <div className="flex gap-3 pt-1">
-            <button
-              type="button"
-              onClick={onCancelar}
-              disabled={cerrando}
-              className="btn-secondary flex-1"
-            >
+          <div className="flex gap-3 p-6 pt-4 border-t border-gray-100 flex-shrink-0">
+            <button type="button" onClick={onCancelar} disabled={cerrando} className="btn-secondary flex-1">
               Cancelar
             </button>
             <button

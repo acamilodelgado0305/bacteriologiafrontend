@@ -3,9 +3,9 @@ import { useParams, Link } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import {
-  obtenerEntidadApi, crearExamenApi, actualizarExamenApi,
+  obtenerEntidadApi, crearExamenApi, actualizarExamenApi, importarExamenesApi,
   agregarPersonalEntidadApi, eliminarPersonalEntidadApi,
-  listarEntidadesApi,
+  listarEntidadesApi, listarExamenesApi,
 } from '../../services/entidadService';
 import { crearUsuarioApi, listarUsuariosApi } from '../../services/userService';
 import {
@@ -445,6 +445,15 @@ const EntidadDetalle = () => {
   const [guardandoExamen, setGuardandoExamen] = useState(false);
   const formExamen = useForm();
 
+  /* ── Importar exámenes ── */
+  const [modalImportar, setModalImportar] = useState(false);
+  const [importOrigenId, setImportOrigenId] = useState('');
+  const [importExamenes, setImportExamenes] = useState([]);
+  const [importCargando, setImportCargando] = useState(false);
+  const [importSeleccionados, setImportSeleccionados] = useState(new Set());
+  const [importando, setImportando] = useState(false);
+  const [importBusqueda, setImportBusqueda] = useState('');
+
   /* ── Supervisores ── */
   const [modalCrearSupervisor, setModalCrearSupervisor] = useState(false);
   const [modalAsociar, setModalAsociar] = useState(false);
@@ -529,6 +538,76 @@ const EntidadDetalle = () => {
       }));
     } catch {
       toast.error('Error al actualizar examen');
+    }
+  };
+
+  /* ── Handlers: Importar exámenes ── */
+  const abrirImportar = async () => {
+    setImportOrigenId('');
+    setImportExamenes([]);
+    setImportSeleccionados(new Set());
+    setImportBusqueda('');
+    setModalImportar(true);
+    if (entidades.length === 0) {
+      try {
+        const { data } = await listarEntidadesApi({ activo: true });
+        setEntidades(data.data);
+      } catch { /* silencioso, el select mostrará vacío */ }
+    }
+  };
+
+  const cargarExamenesOrigen = async (origenId) => {
+    setImportOrigenId(origenId);
+    setImportExamenes([]);
+    setImportSeleccionados(new Set());
+    if (!origenId) return;
+    setImportCargando(true);
+    try {
+      const { data } = await listarExamenesApi(origenId);
+      const lista = data.data || [];
+      setImportExamenes(lista);
+      setImportSeleccionados(new Set(lista.map((e) => e.id)));
+    } catch {
+      toast.error('Error al cargar exámenes de la entidad');
+    } finally {
+      setImportCargando(false);
+    }
+  };
+
+  const toggleImportExamen = (eid) => {
+    setImportSeleccionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(eid)) next.delete(eid); else next.add(eid);
+      return next;
+    });
+  };
+
+  const toggleImportGrupo = (ids, activar) => {
+    setImportSeleccionados((prev) => {
+      const next = new Set(prev);
+      ids.forEach((eid) => (activar ? next.add(eid) : next.delete(eid)));
+      return next;
+    });
+  };
+
+  const confirmarImportar = async () => {
+    if (!importSeleccionados.size) { toast.error('Selecciona al menos un examen'); return; }
+    setImportando(true);
+    try {
+      const { data } = await importarExamenesApi(id, {
+        origenId: importOrigenId,
+        examenIds: [...importSeleccionados],
+      });
+      const nuevos = data.data || [];
+      if (nuevos.length > 0) {
+        setEntidad((prev) => ({ ...prev, examenes: [...prev.examenes, ...nuevos] }));
+      }
+      toast.success(data.mensaje || `${nuevos.length} exámenes importados`);
+      setModalImportar(false);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al importar exámenes');
+    } finally {
+      setImportando(false);
     }
   };
 
@@ -704,12 +783,15 @@ const EntidadDetalle = () => {
       {/* ════ TAB: EXÁMENES ════ */}
       {tab === 'examenes' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h3 className="text-lg font-semibold text-gray-800">Exámenes disponibles</h3>
               <p className="text-sm text-gray-400 mt-0.5">Los estudiantes registran la cantidad diaria de cada examen.</p>
             </div>
-            <Button onClick={() => setModalExamen(true)}>+ Agregar examen</Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={abrirImportar}>⬆️ Importar de otra entidad</Button>
+              <Button onClick={() => setModalExamen(true)}>+ Agregar examen</Button>
+            </div>
           </div>
 
           {entidad.examenes.length === 0 ? (
@@ -776,6 +858,121 @@ const EntidadDetalle = () => {
                 <Button type="submit" loading={guardandoExamen} className="flex-1">Agregar</Button>
               </div>
             </form>
+          </Modal>
+
+          {/* Modal importar exámenes */}
+          <Modal
+            abierto={modalImportar}
+            onCerrar={() => setModalImportar(false)}
+            titulo="Importar exámenes de otra entidad"
+          >
+            <div className="space-y-4">
+              <div>
+                <label className="label">Entidad origen</label>
+                <select
+                  className="input-field"
+                  value={importOrigenId}
+                  onChange={(e) => cargarExamenesOrigen(e.target.value)}
+                >
+                  <option value="">Seleccionar entidad...</option>
+                  {entidades
+                    .filter((e) => e.id !== id)
+                    .map((e) => (
+                      <option key={e.id} value={e.id}>
+                        {e.nombre}{e.ciudad ? ` — ${e.ciudad}` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {importCargando && (
+                <div className="flex justify-center py-6">
+                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-up-blue border-t-transparent" />
+                </div>
+              )}
+
+              {!importCargando && importOrigenId && importExamenes.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-4">Esta entidad no tiene exámenes registrados.</p>
+              )}
+
+              {!importCargando && importExamenes.length > 0 && (() => {
+                const filtrados = importExamenes.filter((e) =>
+                  e.nombre.toLowerCase().includes(importBusqueda.toLowerCase())
+                );
+                const porArea = filtrados.reduce((acc, e) => {
+                  const area = e.area || 'Sin área';
+                  if (!acc[area]) acc[area] = [];
+                  acc[area].push(e);
+                  return acc;
+                }, {});
+
+                return (
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={importBusqueda}
+                      onChange={(e) => setImportBusqueda(e.target.value)}
+                      placeholder="Buscar examen..."
+                      className="input-field"
+                    />
+                    <p className="text-xs text-gray-500 px-1">
+                      {importSeleccionados.size} de {importExamenes.length} seleccionados
+                    </p>
+                    <div className="max-h-72 overflow-y-auto space-y-3 pr-1">
+                      {Object.entries(porArea).sort(([a], [b]) => a.localeCompare(b)).map(([area, exams]) => {
+                        const ids = exams.map((e) => e.id);
+                        const todosOn = ids.every((eid) => importSeleccionados.has(eid));
+                        return (
+                          <div key={area}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                {area} ({exams.length})
+                              </span>
+                              <div className="flex gap-2">
+                                <button type="button" onClick={() => toggleImportGrupo(ids, true)} className="text-xs text-up-blue hover:underline">todos</button>
+                                <span className="text-gray-300">·</span>
+                                <button type="button" onClick={() => toggleImportGrupo(ids, false)} className="text-xs text-gray-400 hover:underline">ninguno</button>
+                              </div>
+                            </div>
+                            <div className="bg-gray-50 rounded-xl divide-y divide-gray-100">
+                              {exams.map((ex) => (
+                                <label key={ex.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-100 transition-colors first:rounded-t-xl last:rounded-b-xl">
+                                  <input
+                                    type="checkbox"
+                                    checked={importSeleccionados.has(ex.id)}
+                                    onChange={() => toggleImportExamen(ex.id)}
+                                    className="w-4 h-4 accent-up-blue flex-shrink-0"
+                                  />
+                                  <span className="text-sm text-gray-700">{ex.nombre}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-gray-400 px-1">
+                      Los exámenes que ya existen en esta entidad (mismo nombre y área) serán omitidos automáticamente.
+                    </p>
+                  </div>
+                );
+              })()}
+
+              <div className="flex gap-3 pt-1">
+                <Button type="button" variant="secondary" className="flex-1" onClick={() => setModalImportar(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1"
+                  loading={importando}
+                  disabled={!importOrigenId || importSeleccionados.size === 0 || importCargando}
+                  onClick={confirmarImportar}
+                >
+                  Importar {importSeleccionados.size > 0 ? `(${importSeleccionados.size})` : ''}
+                </Button>
+              </div>
+            </div>
           </Modal>
         </div>
       )}

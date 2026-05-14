@@ -10,6 +10,8 @@ export const listarExamenesApi = (entidadId) => api.get(`/entidades/${entidadId}
 export const crearExamenApi = (entidadId, datos) => api.post(`/entidades/${entidadId}/examenes`, datos);
 export const actualizarExamenApi = (entidadId, examenId, datos) =>
   api.put(`/entidades/${entidadId}/examenes/${examenId}`, datos);
+export const importarExamenesApi = (entidadId, datos) =>
+  api.post(`/entidades/${entidadId}/examenes/importar`, datos);
 
 // Personal de la entidad (docentes y bacteriólogos asociados)
 export const listarPersonalEntidadApi = (entidadId) => api.get(`/entidades/${entidadId}/personal`);
