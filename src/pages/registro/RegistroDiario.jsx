@@ -436,6 +436,13 @@ export default function RegistroDiario() {
                 nombre={nombreDocente}
                 fechaFirma={registroExistente.firmaDocenteFecha}
               />
+
+              {registroExistente.observacionesDocente && (
+                <div className="bg-blue-50 rounded-xl px-4 py-3 border border-blue-100">
+                  <p className="text-xs font-semibold text-blue-600 mb-1">📝 Observaciones del docente</p>
+                  <p className="text-sm text-blue-800">{registroExistente.observacionesDocente}</p>
+                </div>
+              )}
             </div>
           )}
         </>

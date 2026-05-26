@@ -294,7 +294,12 @@ export default function ReportePDF({ registros, estSeleccionado, periodo, tipoPe
                   })}
                   {r.observaciones && (
                     <Text style={{ fontSize: 7, color: C.ambar, marginTop: 1, fontFamily: 'Helvetica-Oblique' }}>
-                      {'Obs: ' + r.observaciones}
+                      {'Obs. estudiante: ' + r.observaciones}
+                    </Text>
+                  )}
+                  {r.observacionesDocente && (
+                    <Text style={{ fontSize: 7, color: C.azul, marginTop: 1, fontFamily: 'Helvetica-Oblique' }}>
+                      {'Obs. docente: ' + r.observacionesDocente}
                     </Text>
                   )}
                 </View>

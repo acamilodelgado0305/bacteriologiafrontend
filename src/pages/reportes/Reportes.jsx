@@ -625,7 +625,14 @@ export default function Reportes({ cierreId = null, cierreNombre = null, estudia
                             );
                           })}
                           {r.observaciones && (
-                            <p className="text-xs text-amber-700 mt-1 italic border-l-2 border-amber-300 pl-1.5">{r.observaciones}</p>
+                            <p className="text-xs text-amber-700 mt-1 italic border-l-2 border-amber-300 pl-1.5">
+                              📌 {r.observaciones}
+                            </p>
+                          )}
+                          {r.observacionesDocente && (
+                            <p className="text-xs text-blue-700 mt-1 italic border-l-2 border-blue-300 pl-1.5">
+                              👩‍🏫 {r.observacionesDocente}
+                            </p>
                           )}
                         </td>
                         <td className="px-3 py-3 text-center font-bold text-gray-800">{total}</td>

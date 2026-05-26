@@ -46,6 +46,7 @@ const ChipFirma = ({ tiene, label, fecha }) => (
 const RegistroItem = ({ registro, onActualizado }) => {
   const [mostrarFirma, setMostrarFirma] = useState(false);
   const [firmando, setFirmando] = useState(false);
+  const [obsDocente, setObsDocente] = useState('');
   const firmaRef = useRef(null);
 
   const estudiante = registro.estudiante?.usuario;
@@ -60,10 +61,11 @@ const RegistroItem = ({ registro, onActualizado }) => {
   const handleFirmar = async (firmaBase64) => {
     setFirmando(true);
     try {
-      const { data } = await firmarRegistroApi(registro.id, firmaBase64, '');
+      const { data } = await firmarRegistroApi(registro.id, firmaBase64, '', obsDocente);
       toast.success('Firma guardada exitosamente');
       onActualizado(data.data);
       setMostrarFirma(false);
+      setObsDocente('');
     } catch (err) {
       toast.error(err.response?.data?.mensaje || 'Error al guardar la firma');
       firmaRef.current?.limpiar();
@@ -150,6 +152,19 @@ const RegistroItem = ({ registro, onActualizado }) => {
             </div>
           )}
 
+          {/* Observaciones del docente */}
+          <div>
+            <label className="label mb-1">Observaciones del docente (opcional)</label>
+            <textarea
+              rows={3}
+              value={obsDocente}
+              onChange={(e) => setObsDocente(e.target.value)}
+              disabled={firmando}
+              placeholder="Escribe aquí tus observaciones sobre la jornada de práctica..."
+              className="input-field resize-none disabled:bg-gray-50 disabled:text-gray-400 w-full"
+            />
+          </div>
+
           <div>
             <p className="label mb-1">Tu firma (Docente supervisor)</p>
             <p className="text-xs text-gray-400 mb-1">
@@ -182,6 +197,12 @@ const RegistroItem = ({ registro, onActualizado }) => {
           <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3">
             <p className="font-medium">✅ Firmado el {formatearFechaCorta(registro.firmaDocenteFecha)}</p>
           </div>
+          {registro.observacionesDocente && (
+            <div className="bg-blue-50 rounded-xl px-4 py-3 border border-blue-100">
+              <p className="text-xs font-semibold text-blue-600 mb-1">📝 Mis observaciones</p>
+              <p className="text-sm text-blue-800">{registro.observacionesDocente}</p>
+            </div>
+          )}
           <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-xl px-4 py-3">
             <span>🎉</span>
             <span>Esta información ha sido consolidada junto con el bacteriólogo encargado</span>

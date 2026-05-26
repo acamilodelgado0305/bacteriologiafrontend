@@ -140,8 +140,14 @@ const RegistroFila = ({ registro }) => {
           )}
           {registro.observaciones && (
             <div className="bg-amber-50 rounded-lg px-3 py-2">
-              <p className="text-xs font-medium text-amber-700 mb-0.5">Observaciones</p>
+              <p className="text-xs font-medium text-amber-700 mb-0.5">📌 Observaciones del estudiante</p>
               <p className="text-sm text-amber-800">{registro.observaciones}</p>
+            </div>
+          )}
+          {registro.observacionesDocente && (
+            <div className="bg-blue-50 rounded-lg px-3 py-2">
+              <p className="text-xs font-medium text-blue-700 mb-0.5">👩‍🏫 Observaciones del docente</p>
+              <p className="text-sm text-blue-800">{registro.observacionesDocente}</p>
             </div>
           )}
           <div className="flex flex-wrap gap-1.5">
