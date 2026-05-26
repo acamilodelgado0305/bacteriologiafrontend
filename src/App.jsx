@@ -27,7 +27,7 @@ const App = () => (
           <Route path="/registros" element={<RegistroDiario />} />
           <Route path="/reportes" element={<Reportes />} />
 
-          <Route element={<ProtectedRoute roles={['docente', 'bacteriologo']} />}>
+          <Route element={<ProtectedRoute roles={['docente']} />}>
             <Route path="/firmas" element={<Firmas />} />
           </Route>
 

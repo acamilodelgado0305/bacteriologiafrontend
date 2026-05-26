@@ -257,7 +257,7 @@ export default function ReportePDF({ registros, estSeleccionado, periodo, tipoPe
           {registros.map((r, idx) => {
             const total   = (r.examenes || []).reduce((s, e) => s + e.cantidad, 0);
             const areas   = [...new Set((r.examenes || []).map((e) => e.examen?.area || 'Sin área'))];
-            const nFirmas = [r.firmaEstudiante, r.firmaDocente, r.firmaBacteriologo].filter(Boolean).length;
+            const nFirmas = [r.firmaEstudiante, r.firmaDocente].filter(Boolean).length;
 
             return (
               <View key={r.id} style={[S.tRow, idx % 2 === 1 ? S.tRowPar : {}]} wrap={false}>
@@ -302,12 +302,11 @@ export default function ReportePDF({ registros, estSeleccionado, periodo, tipoPe
                 {/* Total */}
                 <Text style={[S.tBold, { width: 30, textAlign: 'center' }]}>{total}</Text>
 
-                {/* Círculos E / D / B */}
-                <View style={[S.firmaRow, { width: 40 }]}>
+                {/* Círculos E / D */}
+                <View style={[S.firmaRow, { width: 28 }]}>
                   {[
                     { l: 'E', a: !!r.firmaEstudiante },
                     { l: 'D', a: !!r.firmaDocente },
-                    { l: 'B', a: !!r.firmaBacteriologo },
                   ].map(({ l, a }) => (
                     <View key={l} style={[S.firmaC, {
                       backgroundColor: a ? C.verdeCirc : C.grisBg,

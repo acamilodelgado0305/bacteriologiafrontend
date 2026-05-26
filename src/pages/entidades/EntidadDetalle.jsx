@@ -16,7 +16,7 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 
-const AREAS = ['Hematología', 'Inmunología', 'Microbiología', 'Parasitología', 'Bioquimica', 'Uroanálisis', 'Banco de Sangre','Toxicologicos','Examanes Especiales','Obsorción Atomica','Biologia Molecular', 'Tamizaje Neonatal','Otro'];
+const AREAS = ['Hematología', 'Inmunología', 'Microbiología', 'Parasitología', 'Bioquimica', 'Uroanálisis', 'Banco de Sangre','Toxicologicos','Examanes Especiales','Obsorción Atomica','Biologia Molecular', 'Tamizaje Neonatal','Administrativos','Otro'];
 
 const generarPassword = (documento) => {
   const d = (documento || '').replace(/\D/g, '');
@@ -39,19 +39,16 @@ const OjoIcon = ({ visible }) => visible ? (
 /* ─── Modal credenciales supervisor ─── */
 const ModalCredencialesSupervisor = ({ credenciales, onCerrar }) => {
   const copiar = (texto) => { navigator.clipboard.writeText(texto); toast.success('Copiado'); };
-  const color = credenciales?.rol === 'docente' ? 'blue' : 'purple';
   return (
-    <Modal abierto={!!credenciales} onCerrar={onCerrar}
-      titulo={`✅ ${credenciales?.rol === 'docente' ? 'Docente' : 'Bacteriólogo'} creado y asociado`}>
+    <Modal abierto={!!credenciales} onCerrar={onCerrar} titulo="✅ Docente creado y asociado">
       <div className="space-y-4">
         <p className="text-sm text-gray-600">
-          El supervisor fue creado y asociado a la entidad. Comparte estas credenciales.
+          El docente fue creado y asociado a la entidad. Comparte estas credenciales.
         </p>
-        <div className={`bg-${color}-50 rounded-xl p-4 space-y-3`}>
+        <div className="bg-blue-50 rounded-xl p-4 space-y-3">
           <div>
-            <p className="text-xs text-gray-500 mb-1">Supervisor</p>
+            <p className="text-xs text-gray-500 mb-1">Docente supervisor</p>
             <p className="font-semibold text-gray-800">{credenciales?.nombre}</p>
-            <p className="text-xs text-gray-500 capitalize">{credenciales?.rol}</p>
           </div>
           {[
             { label: 'Correo electrónico', value: credenciales?.email },
@@ -120,7 +117,6 @@ const ModalCrearSupervisor = ({ abierto, onCerrar, onCreado }) => {
     defaultValues: { rol: 'docente' },
   });
   const documento = useWatch({ control, name: 'documento', defaultValue: '' });
-  const rol = useWatch({ control, name: 'rol', defaultValue: 'docente' });
 
   useEffect(() => { setValue('password', generarPassword(documento)); }, [documento, setValue]);
 
@@ -137,29 +133,9 @@ const ModalCrearSupervisor = ({ abierto, onCerrar, onCreado }) => {
   };
 
   return (
-    <Modal abierto={abierto} onCerrar={cerrar} titulo="Crear supervisor en esta entidad" ancho="max-w-lg">
+    <Modal abierto={abierto} onCerrar={cerrar} titulo="Crear docente supervisor" ancho="max-w-lg">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <label className="label">Rol *</label>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { value: 'docente', label: '👩‍🏫 Docente', color: 'blue' },
-              { value: 'bacteriologo', label: '🔬 Bacteriólogo', color: 'purple' },
-            ].map((op) => (
-              <label key={op.value}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 cursor-pointer transition-colors ${
-                  rol === op.value
-                    ? op.color === 'blue'
-                      ? 'border-blue-500 bg-blue-50 text-blue-700'
-                      : 'border-purple-500 bg-purple-50 text-purple-700'
-                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                }`}>
-                <input type="radio" value={op.value} {...register('rol')} className="sr-only" />
-                <span className="text-sm font-medium">{op.label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+        <input type="hidden" value="docente" {...register('rol')} />
 
         <div className="grid grid-cols-2 gap-3">
           <Input label="Nombre *" error={errors.nombre?.message}
@@ -212,7 +188,7 @@ const ModalCrearSupervisor = ({ abierto, onCerrar, onCreado }) => {
 
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="secondary" className="flex-1" onClick={cerrar}>Cancelar</Button>
-          <Button type="submit" loading={guardando} className="flex-1">Crear y asociar</Button>
+          <Button type="submit" loading={guardando} className="flex-1">Crear docente y asociar</Button>
         </div>
       </form>
     </Modal>
@@ -229,12 +205,9 @@ const ModalAsociarExistente = ({ abierto, onCerrar, idsActuales, onAsociado }) =
   useEffect(() => {
     if (!abierto) return;
     setCargando(true);
-    Promise.all([
-      listarUsuariosApi({ rol: 'docente' }),
-      listarUsuariosApi({ rol: 'bacteriologo' }),
-    ]).then(([resDoc, resBac]) => {
-      const todos = [...resDoc.data.data, ...resBac.data.data];
-      setUsuarios(todos.filter((u) => !idsActuales.has(u.id) && u.activo));
+    listarUsuariosApi({ rol: 'docente' })
+    .then((resDoc) => {
+      setUsuarios(resDoc.data.data.filter((u) => !idsActuales.has(u.id) && u.activo));
       setSeleccionado('');
     }).catch(() => toast.error('Error al cargar usuarios'))
       .finally(() => setCargando(false));
@@ -252,10 +225,10 @@ const ModalAsociarExistente = ({ abierto, onCerrar, idsActuales, onAsociado }) =
   };
 
   return (
-    <Modal abierto={abierto} onCerrar={onCerrar} titulo="Asociar supervisor existente">
+    <Modal abierto={abierto} onCerrar={onCerrar} titulo="Asociar docente existente">
       <div className="space-y-4">
         <p className="text-sm text-gray-500">
-          Selecciona un docente o bacteriólogo ya registrado en el sistema.
+          Selecciona un docente ya registrado en el sistema.
         </p>
         {cargando ? (
           <div className="flex justify-center py-6">
@@ -263,7 +236,7 @@ const ModalAsociarExistente = ({ abierto, onCerrar, idsActuales, onAsociado }) =
           </div>
         ) : usuarios.length === 0 ? (
           <p className="text-sm text-amber-600 bg-amber-50 rounded-xl px-4 py-3">
-            No hay supervisores disponibles para asociar. Todos ya están en esta entidad o no existen aún.
+            No hay docentes disponibles para asociar. Todos ya están en esta entidad o no existen aún.
           </p>
         ) : (
           <div>
@@ -272,7 +245,7 @@ const ModalAsociarExistente = ({ abierto, onCerrar, idsActuales, onAsociado }) =
               <option value="">Seleccionar...</option>
               {usuarios.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.nombre} {u.apellido} — {u.rol === 'docente' ? 'Docente' : 'Bacteriólogo'}
+                  {u.nombre} {u.apellido}
                 </option>
               ))}
             </select>
@@ -401,7 +374,7 @@ const FormularioEstudiante = ({
 /* ─── Tab bar ─── */
 const TabBar = ({ tab, setTab, counts }) => {
   const tabs = [
-    { id: 'examenes', label: 'Exámenes', icon: '🧪', count: counts.examenes },
+    { id: 'examenes', label: 'Exámenes y Actividades', icon: '🧪', count: counts.examenes },
     { id: 'supervisores', label: 'Supervisores', icon: '👥', count: counts.supervisores },
     { id: 'estudiantes', label: 'Estudiantes', icon: '👨‍🎓', count: counts.estudiantes },
   ];
@@ -737,7 +710,6 @@ const EntidadDetalle = () => {
   }, {});
 
   const docentes = entidad.personal.filter((p) => p.usuario.rol === 'docente');
-  const bacteriologos = entidad.personal.filter((p) => p.usuario.rol === 'bacteriologo');
   const idsActuales = new Set(entidad.personal.map((p) => p.usuarioId));
 
   const propsFormEst = { entidades, verPassword, setVerPassword };
@@ -764,8 +736,8 @@ const EntidadDetalle = () => {
         </div>
         <div className="flex gap-4 mt-4 pt-4 border-t border-gray-100 text-sm text-gray-500">
           <span>👨‍🎓 {entidad._count.estudiantes} estudiantes</span>
-          <span>🧪 {entidad.examenes.length} exámenes</span>
-          <span>👥 {entidad.personal.length} supervisores</span>
+          <span>🧪 {entidad.examenes.length} exámenes y actividades</span>
+          <span>👥 {entidad.personal.length} docentes</span>
         </div>
       </div>
 
@@ -785,12 +757,12 @@ const EntidadDetalle = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 className="text-lg font-semibold text-gray-800">Exámenes disponibles</h3>
-              <p className="text-sm text-gray-400 mt-0.5">Los estudiantes registran la cantidad diaria de cada examen.</p>
+              <h3 className="text-lg font-semibold text-gray-800">Exámenes y Actividades</h3>
+              <p className="text-sm text-gray-400 mt-0.5">Los estudiantes registran la cantidad diaria de cada examen o actividad.</p>
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={abrirImportar}>⬆️ Importar de otra entidad</Button>
-              <Button onClick={() => setModalExamen(true)}>+ Agregar examen</Button>
+              <Button onClick={() => setModalExamen(true)}>+ Agregar examen o actividad</Button>
             </div>
           </div>
 
@@ -839,23 +811,26 @@ const EntidadDetalle = () => {
             </div>
           )}
 
-          <Modal abierto={modalExamen} onCerrar={() => { setModalExamen(false); formExamen.reset(); }} titulo="Agregar examen">
+          <Modal abierto={modalExamen} onCerrar={() => { setModalExamen(false); formExamen.reset(); }} titulo="Agregar examen o actividad">
             <form onSubmit={formExamen.handleSubmit(onSubmitExamen)} className="space-y-4">
-              <Input label="Nombre del examen *" error={formExamen.formState.errors.nombre?.message}
-                {...formExamen.register('nombre', { required: 'Requerido' })} />
               <div>
-                <label className="label">Área</label>
+                <label className="label">Categoría / Área</label>
                 <select className="input-field" {...formExamen.register('area')}>
-                  <option value="">Seleccionar área</option>
+                  <option value="">Seleccionar categoría</option>
                   {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
                 </select>
+                <p className="text-xs text-gray-400 mt-1">
+                  Selecciona <span className="font-medium">Administrativos</span> para registrar actividades no clínicas.
+                </p>
               </div>
+              <Input label="Nombre del examen o actividad *" error={formExamen.formState.errors.nombre?.message}
+                {...formExamen.register('nombre', { required: 'Requerido' })} />
               <div className="flex gap-3 pt-2">
                 <Button type="button" variant="secondary" className="flex-1"
                   onClick={() => { setModalExamen(false); formExamen.reset(); }}>
                   Cancelar
                 </Button>
-                <Button type="submit" loading={guardandoExamen} className="flex-1">Agregar</Button>
+                <Button type="submit" loading={guardandoExamen} className="flex-1">Crear examen o actividad</Button>
               </div>
             </form>
           </Modal>
@@ -982,22 +957,22 @@ const EntidadDetalle = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
-              <h3 className="text-lg font-semibold text-gray-800">Personal supervisor</h3>
+              <h3 className="text-lg font-semibold text-gray-800">Docentes supervisores</h3>
               <p className="text-sm text-gray-400 mt-0.5">
-                Los estudiantes seleccionan al supervisor de guardia al crear cada registro diario.
+                Los estudiantes seleccionan al docente de guardia al crear cada registro diario.
               </p>
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => setModalAsociar(true)}>Asociar existente</Button>
-              <Button onClick={() => setModalCrearSupervisor(true)}>+ Crear supervisor</Button>
+              <Button onClick={() => setModalCrearSupervisor(true)}>+ Crear docente</Button>
             </div>
           </div>
 
           {entidad.personal.length === 0 ? (
             <div className="card text-center py-10 text-gray-400">
               <span className="text-4xl">👥</span>
-              <p className="mt-2 text-sm">No hay supervisores asociados a esta entidad</p>
-              <p className="text-xs mt-1">Crea un nuevo supervisor o asocia uno existente</p>
+              <p className="mt-2 text-sm">No hay docentes asociados a esta entidad</p>
+              <p className="text-xs mt-1">Crea un nuevo docente o asocia uno existente</p>
             </div>
           ) : (
             <div className="card p-0 overflow-hidden">
@@ -1019,11 +994,7 @@ const EntidadDetalle = () => {
                         </td>
                         <td className="px-4 py-3 text-gray-500">{p.usuario.email}</td>
                         <td className="px-4 py-3">
-                          {p.usuario.rol === 'docente' ? (
-                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">Docente</span>
-                          ) : (
-                            <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700">Bacteriólogo</span>
-                          )}
+                          <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700">Docente</span>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button

@@ -52,10 +52,12 @@ const periodos = {
   },
 };
 
-const BadgeEstado = ({ firmado, firmaEstudiante, firmaDocente, firmaBacteriologo }) => {
-  if (firmado) return <span className="badge badge-green text-xs">Completado</span>;
-  const n = [firmaEstudiante, firmaDocente, firmaBacteriologo].filter(Boolean).length;
-  return <span className="badge badge-gray text-xs">Pendiente ({n}/3)</span>;
+const esCompleto = (r) => r.firmado || (!!r.firmaEstudiante && !!r.firmaDocente);
+
+const BadgeEstado = ({ firmado, firmaEstudiante, firmaDocente }) => {
+  if (firmado || (firmaEstudiante && firmaDocente)) return <span className="badge badge-green text-xs">Completado</span>;
+  const n = [firmaEstudiante, firmaDocente].filter(Boolean).length;
+  return <span className="badge badge-gray text-xs">Pendiente ({n}/2)</span>;
 };
 
 const Firma = ({ activa, letra, titulo }) => (
@@ -183,7 +185,7 @@ export default function Reportes({ cierreId = null, cierreNombre = null, estudia
 
   /* Cálculos compartidos */
   const totalExamenes = registros.reduce((s, r) => s + (r.examenes || []).reduce((ss, e) => ss + e.cantidad, 0), 0);
-  const completados   = registros.filter((r) => r.firmado).length;
+  const completados   = registros.filter((r) => esCompleto(r)).length;
   const pendientes    = registros.length - completados;
   const areasTotales  = {};
   registros.forEach((r) => {
@@ -460,7 +462,7 @@ export default function Reportes({ cierreId = null, cierreNombre = null, estudia
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {estudiantesEntidad.map(({ estudiante, registros: regs, totalExamenes: total }) => {
-                    const completadosEst = regs.filter((r) => r.firmado).length;
+                    const completadosEst = regs.filter((r) => esCompleto(r)).length;
                     return (
                       <tr key={estudiante?.id} className="hover:bg-gray-50">
                         <td className="px-3 py-3">
@@ -628,13 +630,12 @@ export default function Reportes({ cierreId = null, cierreNombre = null, estudia
                         <td className="px-3 py-3 text-center font-bold text-gray-800">{total}</td>
                         <td className="px-3 py-3 text-center">
                           <div className="flex justify-center gap-1">
-                            <Firma activa={!!r.firmaEstudiante}   letra="E" titulo="Firma Estudiante" />
-                            <Firma activa={!!r.firmaDocente}      letra="D" titulo="Firma Docente" />
-                            <Firma activa={!!r.firmaBacteriologo} letra="B" titulo="Firma Bacteriólogo" />
+                            <Firma activa={!!r.firmaEstudiante} letra="E" titulo="Firma Estudiante" />
+                            <Firma activa={!!r.firmaDocente}    letra="D" titulo="Firma Docente" />
                           </div>
                         </td>
                         <td className="px-3 py-3 text-center">
-                          <BadgeEstado firmado={r.firmado} firmaEstudiante={r.firmaEstudiante} firmaDocente={r.firmaDocente} firmaBacteriologo={r.firmaBacteriologo} />
+                          <BadgeEstado firmado={r.firmado} firmaEstudiante={r.firmaEstudiante} firmaDocente={r.firmaDocente} />
                         </td>
                       </tr>
                     );

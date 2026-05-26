@@ -195,12 +195,6 @@ const ModalCerrar = ({ onCancelar, onConfirmar, cerrando }) => {
                   label="Docentes"
                   descripcion={conservar.docentes ? 'Sus cuentas permanecen activas.' : 'Sus cuentas serán desactivadas al cerrar.'}
                 />
-                <ToggleOpcion
-                  activo={conservar.supervisores}
-                  onChange={(v) => setOpcion('supervisores', v)}
-                  label="Supervisores (bacteriólogos)"
-                  descripcion={conservar.supervisores ? 'Sus cuentas permanecen activas.' : 'Sus cuentas serán desactivadas al cerrar.'}
-                />
               </div>
             </div>
 
@@ -402,7 +396,6 @@ const CierreSemestre = () => {
       toast.success(data.mensaje || 'Semestre cerrado exitosamente');
       const extras = [
         desactivados.docentes > 0 && `${desactivados.docentes} docente(s) desactivado(s)`,
-        desactivados.supervisores > 0 && `${desactivados.supervisores} bacteriólogo(s) desactivado(s)`,
         desactivados.estudiantes > 0 && `${desactivados.estudiantes} estudiante(s) desactivado(s)`,
       ].filter(Boolean);
       if (extras.length > 0) {

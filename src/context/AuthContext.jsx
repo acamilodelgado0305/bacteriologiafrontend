@@ -36,12 +36,11 @@ export const AuthProvider = ({ children }) => {
   const esAdmin    = usuario?.rol === 'admin' || (usuario?.rol === 'docente' && !!usuario?.esAdminDocente);
   const esDocente  = usuario?.rol === 'docente';
   const esEstudiante = usuario?.rol === 'estudiante';
-  const esBacteriologo = usuario?.rol === 'bacteriologo';
 
   return (
     <AuthContext.Provider value={{
       usuario, cargando, login, logout, cargarPerfil,
-      esAdmin, esDocente, esEstudiante, esBacteriologo,
+      esAdmin, esDocente, esEstudiante,
     }}>
       {children}
     </AuthContext.Provider>

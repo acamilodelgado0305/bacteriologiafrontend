@@ -49,7 +49,7 @@ const ItemActividad = ({ registro, esEstudiante }) => {
 };
 
 const Dashboard = () => {
-  const { usuario, esEstudiante, esAdmin, esDocente, esBacteriologo } = useAuth();
+  const { usuario, esEstudiante, esAdmin, esDocente } = useAuth();
   const [stats, setStats] = useState(null);
   const [cargando, setCargando] = useState(true);
 
@@ -64,8 +64,8 @@ const Dashboard = () => {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
-  const esSupervisor = esDocente || esBacteriologo;
-  const rolLabel = esDocente ? 'docente supervisor' : esBacteriologo ? 'bacteriólogo supervisor' : '';
+  const esSupervisor = esDocente;
+  const rolLabel = esDocente ? 'docente supervisor' : '';
 
   /* ── Tarjetas según perfil ── */
   const renderTarjetas = () => {

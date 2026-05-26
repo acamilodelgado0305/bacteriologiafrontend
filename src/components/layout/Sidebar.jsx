@@ -3,12 +3,12 @@ import { useAuth } from '../../context/AuthContext';
 import logoApp from '../../images/bact.jpeg';
 
 const navItems = [
-  { to: '/dashboard',     label: 'Inicio',               icon: '🏠', roles: ['admin', 'docente', 'estudiante', 'bacteriologo'] },
+  { to: '/dashboard',     label: 'Inicio',               icon: '🏠', roles: ['admin', 'docente', 'estudiante'] },
   { to: '/registros',     label: 'Registro Diario',      icon: '📋', roles: ['estudiante'] },
-  { to: '/firmas',        label: 'Firmas pendientes',    icon: '✍️', roles: ['docente', 'bacteriologo'] },
+  { to: '/firmas',        label: 'Firmas pendientes',    icon: '✍️', roles: ['docente'] },
   { to: '/entidades',     label: 'Entidades',            icon: '🏥', roles: ['admin', 'docente'] },
   { to: '/cierres',       label: 'Archivo Semestres',    icon: '🗄️', roles: ['admin', 'docente'] },
-  { to: '/reportes',      label: 'Reportes',             icon: '📊', roles: ['admin', 'docente', 'bacteriologo', 'estudiante'] },
+  { to: '/reportes',      label: 'Reportes',             icon: '📊', roles: ['admin', 'docente', 'estudiante'] },
   { to: '/usuarios',      label: 'Usuarios',             icon: '👥', roles: ['admin'] },
 ];
 

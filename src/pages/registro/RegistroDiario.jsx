@@ -49,7 +49,6 @@ export default function RegistroDiario() {
   const [horaEntrada, setHoraEntrada] = useState('');
   const [horaSalida, setHoraSalida] = useState('');
   const [docenteId, setDocenteId] = useState('');
-  const [bacteriologoId, setBacteriologoId] = useState('');
   const [registroExistente, setRegistroExistente] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [cargandoFecha, setCargandoFecha] = useState(false);
@@ -89,7 +88,6 @@ export default function RegistroDiario() {
         setHoraEntrada(reg.horaEntrada || '');
         setHoraSalida(reg.horaSalida || '');
         setDocenteId(reg.docenteSupervisorId || '');
-        setBacteriologoId(reg.bacteriologoSupervisorId || '');
       } else {
         const mapa = {};
         perfil.entidad?.examenes?.forEach((ex) => { mapa[ex.id] = 0; });
@@ -98,7 +96,6 @@ export default function RegistroDiario() {
         setHoraEntrada('');
         setHoraSalida('');
         setDocenteId('');
-        setBacteriologoId('');
       }
     } catch {
       toast.error('Error al cargar el registro');
@@ -120,15 +117,11 @@ export default function RegistroDiario() {
 
   const handleGuardar = async () => {
     if (totalExamenes === 0) {
-      toast.error('Debes registrar al menos un examen');
+      toast.error('Debes registrar al menos un examen o actividad');
       return;
     }
     if (!docenteId) {
       toast.error('Debes seleccionar el docente supervisor de esta jornada');
-      return;
-    }
-    if (!bacteriologoId) {
-      toast.error('Debes seleccionar el bacteriólogo supervisor de esta jornada');
       return;
     }
     if (firmaRef.current?.estaVacio()) {
@@ -147,7 +140,6 @@ export default function RegistroDiario() {
         horaEntrada: horaEntrada || null,
         horaSalida: horaSalida || null,
         docenteSupervisorId: docenteId,
-        bacteriologoSupervisorId: bacteriologoId,
       });
       setRegistroExistente(data.data);
       firmaRef.current?.limpiar();
@@ -184,26 +176,18 @@ export default function RegistroDiario() {
   const examenes = perfil.entidad.examenes || [];
   const areas = [...new Set(examenes.map((e) => e.area || 'Sin área'))].sort();
   const yaFirmo = !!registroExistente?.firmaEstudiante;
-  const firmado = registroExistente?.firmado;
+  const firmado = registroExistente?.firmado || (!!registroExistente?.firmaEstudiante && !!registroExistente?.firmaDocente);
   const editable = !yaFirmo && !firmado;
 
   const personal = perfil.entidad.personal || [];
   const docentes = personal.filter((p) => p.usuario.rol === 'docente');
-  const bacteriologos = personal.filter((p) => p.usuario.rol === 'bacteriologo');
 
   const nombreEstudiante = `${usuario?.nombre || ''} ${usuario?.apellido || ''}`.trim();
 
-  // Nombres del supervisor del registro existente o del seleccionado actualmente
   const nombreDocente = registroExistente?.docenteSupervisor
     ? `${registroExistente.docenteSupervisor.nombre} ${registroExistente.docenteSupervisor.apellido}`
     : docenteId
       ? (() => { const d = docentes.find((p) => p.usuarioId === docenteId); return d ? `${d.usuario.nombre} ${d.usuario.apellido}` : null; })()
-      : null;
-
-  const nombreBacteriologo = registroExistente?.bacteriologoSupervisor
-    ? `${registroExistente.bacteriologoSupervisor.nombre} ${registroExistente.bacteriologoSupervisor.apellido}`
-    : bacteriologoId
-      ? (() => { const b = bacteriologos.find((p) => p.usuarioId === bacteriologoId); return b ? `${b.usuario.nombre} ${b.usuario.apellido}` : null; })()
       : null;
 
   return (
@@ -212,6 +196,7 @@ export default function RegistroDiario() {
       {/* Encabezado */}
       <div>
         <h2 className="text-2xl font-bold text-gray-800">Registro Diario</h2>
+        <p className="text-xs text-up-blue font-medium mt-0.5">Exámenes y Actividades</p>
         <p className="text-gray-500 text-sm mt-1">
           {perfil.entidad.nombre}
           {perfil.entidad.ciudad ? ` · ${perfil.entidad.ciudad}` : ''}
@@ -237,12 +222,12 @@ export default function RegistroDiario() {
 
         {firmado && (
           <div className="mt-3 flex items-center gap-2 text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">
-            <span>✅</span><span>Registro completamente firmado por las 3 partes</span>
+            <span>✅</span><span>Registro completamente firmado</span>
           </div>
         )}
-        {yaFirmo && !firmado && (
+        {yaFirmo && !firmado && !registroExistente?.firmaDocente && (
           <div className="mt-3 flex items-center gap-2 text-sm text-blue-700 bg-blue-50 rounded-lg px-3 py-2">
-            <span>✍️</span><span>Ya firmaste este registro — esperando la firma del docente y bacteriólogo</span>
+            <span>✍️</span><span>Ya firmaste este registro — esperando la firma del docente</span>
           </div>
         )}
 
@@ -271,73 +256,42 @@ export default function RegistroDiario() {
         </div>
       </div>
 
-      {/* Supervisores de la jornada */}
+      {/* Docente supervisor de la jornada */}
       <div className="card space-y-3">
         <div>
-          <h3 className="font-semibold text-gray-800">Supervisores de esta jornada</h3>
+          <h3 className="font-semibold text-gray-800">Docente supervisor de esta jornada</h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            Selecciona qué docente y bacteriólogo te supervisaron hoy.
+            Selecciona qué docente te supervisó hoy.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className="label text-xs">Docente supervisor *</label>
-            {editable ? (
-              docentes.length === 0 ? (
-                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-                  No hay docentes asignados a esta entidad
-                </p>
-              ) : (
-                <select
-                  className="input-field"
-                  value={docenteId}
-                  onChange={(e) => setDocenteId(e.target.value)}
-                  disabled={guardando}
-                >
-                  <option value="">Seleccionar docente...</option>
-                  {docentes.map((p) => (
-                    <option key={p.usuarioId} value={p.usuarioId}>
-                      {p.usuario.nombre} {p.usuario.apellido}
-                    </option>
-                  ))}
-                </select>
-              )
-            ) : (
-              <p className="text-sm font-medium text-gray-700 px-1">
-                {nombreDocente || <span className="text-gray-400 italic">No asignado</span>}
+        <div>
+          <label className="label text-xs">Docente supervisor *</label>
+          {editable ? (
+            docentes.length === 0 ? (
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                No hay docentes asignados a esta entidad
               </p>
-            )}
-          </div>
-
-          <div>
-            <label className="label text-xs">Bacteriólogo supervisor *</label>
-            {editable ? (
-              bacteriologos.length === 0 ? (
-                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-                  No hay bacteriólogos asignados a esta entidad
-                </p>
-              ) : (
-                <select
-                  className="input-field"
-                  value={bacteriologoId}
-                  onChange={(e) => setBacteriologoId(e.target.value)}
-                  disabled={guardando}
-                >
-                  <option value="">Seleccionar bacteriólogo...</option>
-                  {bacteriologos.map((p) => (
-                    <option key={p.usuarioId} value={p.usuarioId}>
-                      {p.usuario.nombre} {p.usuario.apellido}
-                    </option>
-                  ))}
-                </select>
-              )
             ) : (
-              <p className="text-sm font-medium text-gray-700 px-1">
-                {nombreBacteriologo || <span className="text-gray-400 italic">No asignado</span>}
-              </p>
-            )}
-          </div>
+              <select
+                className="input-field"
+                value={docenteId}
+                onChange={(e) => setDocenteId(e.target.value)}
+                disabled={guardando}
+              >
+                <option value="">Seleccionar docente...</option>
+                {docentes.map((p) => (
+                  <option key={p.usuarioId} value={p.usuarioId}>
+                    {p.usuario.nombre} {p.usuario.apellido}
+                  </option>
+                ))}
+              </select>
+            )
+          ) : (
+            <p className="text-sm font-medium text-gray-700 px-1">
+              {nombreDocente || <span className="text-gray-400 italic">No asignado</span>}
+            </p>
+          )}
         </div>
       </div>
 
@@ -348,11 +302,11 @@ export default function RegistroDiario() {
       ) : examenes.length === 0 ? (
         <div className="card text-center py-10 text-gray-400">
           <span className="text-4xl">🧪</span>
-          <p className="mt-2 text-sm">No hay exámenes configurados para tu entidad</p>
+          <p className="mt-2 text-sm">No hay exámenes o actividades configurados para tu entidad</p>
         </div>
       ) : (
         <>
-          {/* Exámenes por área */}
+          {/* Exámenes y actividades por área */}
           {areas.map((area) => {
             const exsArea = examenes.filter((e) => (e.area || 'Sin área') === area);
             const totalArea = exsArea.reduce((s, e) => s + (cantidades[e.id] || 0), 0);
@@ -361,7 +315,11 @@ export default function RegistroDiario() {
                 <div className="flex items-center justify-between bg-gray-50 px-4 py-3 border-b border-gray-100">
                   <span className="font-semibold text-gray-700 text-sm">{area}</span>
                   {totalArea > 0 && (
-                    <span className="badge badge-blue">{totalArea} examen{totalArea !== 1 ? 'es' : ''}</span>
+                    <span className="badge badge-blue">
+                      {area === 'Administrativos'
+                        ? `${totalArea} actividad${totalArea !== 1 ? 'es' : ''}`
+                        : `${totalArea} examen${totalArea !== 1 ? 'es' : ''}`}
+                    </span>
                   )}
                 </div>
                 <div className="divide-y divide-gray-50">
@@ -421,15 +379,15 @@ export default function RegistroDiario() {
 
               <SignaturePad ref={firmaRef} ocultarConfirmar disabled={guardando} />
 
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-1">
                 <div>
-                  <p className="text-xs text-gray-400">Total de exámenes</p>
+                  <p className="text-xs text-gray-400">Total de exámenes y actividades</p>
                   <p className="text-2xl font-bold text-gray-800">{totalExamenes}</p>
                 </div>
                 <button
                   onClick={handleGuardar}
                   disabled={guardando || totalExamenes === 0}
-                  className="bg-up-blue text-white font-semibold px-6 py-3 rounded-xl hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  className="w-full sm:w-auto justify-center bg-up-blue text-white font-semibold px-6 py-3 rounded-xl hover:bg-blue-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                 >
                   {guardando ? (
                     <>
@@ -474,13 +432,6 @@ export default function RegistroDiario() {
                 rol="Docente supervisor"
                 nombre={nombreDocente}
                 fechaFirma={registroExistente.firmaDocenteFecha}
-              />
-              <FilaFirmante
-                icono="🔬"
-                rol="Bacteriólogo supervisor"
-                nombre={nombreBacteriologo}
-                firmante={registroExistente.nombreFirmanteBacteriologo}
-                fechaFirma={registroExistente.firmaBacteriologoFecha}
               />
             </div>
           )}

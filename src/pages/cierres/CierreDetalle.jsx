@@ -25,7 +25,6 @@ const abrirReporte = (datos) => {
 
   const filasSupervisores = [
     ...supervisores.docentes.map((d) => `<tr><td>${d.nombre} ${d.apellido}</td><td>Docente</td><td style="text-align:center">${d.totalRegistros}</td><td style="text-align:center">${d.totalEstudiantes}</td></tr>`),
-    ...supervisores.bacteriologos.map((b) => `<tr><td>${b.nombre} ${b.apellido}</td><td>Bacteriólogo</td><td style="text-align:center">${b.totalRegistros}</td><td style="text-align:center">${b.totalEstudiantes}</td></tr>`),
   ].join('');
 
   const filasEntidades = entidades.map((e) => `
@@ -36,7 +35,7 @@ const abrirReporte = (datos) => {
       <td style="text-align:center">${e.totalRegistros}</td>
     </tr>`).join('');
 
-  const totalSupervisores = supervisores.docentes.length + supervisores.bacteriologos.length;
+  const totalSupervisores = supervisores.docentes.length;
 
   const html = `<!DOCTYPE html><html lang="es"><head>
   <meta charset="UTF-8"/>
@@ -116,22 +115,10 @@ const RegistroFila = ({ registro }) => {
 
       {expandido && (
         <div className="border-t border-gray-100 p-4 space-y-3 bg-gray-50/50">
-          {(registro.docenteSupervisor || registro.bacteriologoSupervisor) && (
-            <div className="grid grid-cols-2 gap-2">
-              {registro.docenteSupervisor && (
-                <div className="bg-blue-50 rounded-lg px-3 py-2">
-                  <p className="text-xs font-medium text-blue-600">Docente</p>
-                  <p className="text-sm text-blue-900">{registro.docenteSupervisor.nombre} {registro.docenteSupervisor.apellido}</p>
-                </div>
-              )}
-              {registro.bacteriologoSupervisor && (
-                <div className="bg-purple-50 rounded-lg px-3 py-2">
-                  <p className="text-xs font-medium text-purple-600">Bacteriólogo</p>
-                  <p className="text-sm text-purple-900">
-                    {registro.nombreFirmanteBacteriologo || `${registro.bacteriologoSupervisor.nombre} ${registro.bacteriologoSupervisor.apellido}`}
-                  </p>
-                </div>
-              )}
+          {registro.docenteSupervisor && (
+            <div className="bg-blue-50 rounded-lg px-3 py-2">
+              <p className="text-xs font-medium text-blue-600">Docente supervisor</p>
+              <p className="text-sm text-blue-900">{registro.docenteSupervisor.nombre} {registro.docenteSupervisor.apellido}</p>
             </div>
           )}
           {areas.length > 0 && (
@@ -161,7 +148,6 @@ const RegistroFila = ({ registro }) => {
             {[
               { tiene: !!registro.firmaEstudiante, label: 'Estudiante', fecha: registro.firmaEstudianteFecha },
               { tiene: !!registro.firmaDocente, label: 'Docente', fecha: registro.firmaDocenteFecha },
-              { tiene: !!registro.firmaBacteriologo, label: 'Bacteriólogo', fecha: registro.firmaBacteriologoFecha },
             ].map(({ tiene, label, fecha }) => (
               <span key={label} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${tiene ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                 {tiene ? '✓' : '○'} {label}
@@ -257,8 +243,8 @@ const TabEstudiantes = ({ estudiantes }) => {
 
 // ─── Tab Supervisores ────────────────────────────────────────────────────────
 const TabSupervisores = ({ supervisores }) => {
-  const { docentes, bacteriologos } = supervisores;
-  if (docentes.length === 0 && bacteriologos.length === 0) {
+  const { docentes } = supervisores;
+  if (docentes.length === 0) {
     return (
       <div className="card text-center py-12">
         <span className="text-4xl">👥</span>
@@ -301,16 +287,6 @@ const TabSupervisores = ({ supervisores }) => {
           </div>
         </div>
       )}
-      {bacteriologos.length > 0 && (
-        <div className="card p-0 overflow-hidden">
-          <div className="px-4 py-2.5 bg-purple-50 border-b border-purple-100">
-            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Bacteriólogos · {bacteriologos.length}</p>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {bacteriologos.map((b) => <Fila key={b.id} persona={b} rol="Supervisor bacteriólogo" color="bg-purple-100" />)}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
@@ -350,7 +326,7 @@ const TabEntidades = ({ entidades }) => {
 
 // ─── Tab Resumen ─────────────────────────────────────────────────────────────
 const TabResumen = ({ cierre, estudiantes, supervisores, entidades }) => {
-  const totalSupervisores = supervisores.docentes.length + supervisores.bacteriologos.length;
+  const totalSupervisores = supervisores.docentes.length;
   const totalExamenes = estudiantes.reduce((s, e) => s + e.totalExamenes, 0);
 
   const stats = [
@@ -483,7 +459,7 @@ const CierreDetalle = () => {
               )}
               {tab.id === 'supervisores' && (
                 <span className="ml-1 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
-                  {supervisores.docentes.length + supervisores.bacteriologos.length}
+                  {supervisores.docentes.length}
                 </span>
               )}
               {tab.id === 'entidades' && (

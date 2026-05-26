@@ -89,8 +89,8 @@ const SignaturePad = forwardRef(({ disabled = false, onFirma, ocultarConfirmar =
         <canvas
           ref={canvasRef}
           width={600}
-          height={160}
-          className="w-full h-32 touch-none"
+          height={220}
+          className="w-full h-44 touch-none"
           style={{ cursor: disabled ? 'default' : 'crosshair' }}
           onMouseDown={iniciar}
           onMouseMove={dibujar}

@@ -5,7 +5,6 @@ import { listarUsuariosApi, actualizarUsuarioApi, cambiarPasswordApi, eliminarUs
 const rolColor = {
   admin: 'badge-blue',
   docente: 'badge-green',
-  bacteriologo: 'badge-blue',
   estudiante: 'badge-gray',
 };
 
@@ -127,7 +126,6 @@ const Usuarios = () => {
           <option value="">Todos los roles</option>
           <option value="estudiante">Estudiantes</option>
           <option value="docente">Docentes</option>
-          <option value="bacteriologo">Bacteriólogos</option>
           <option value="admin">Administradores</option>
         </select>
       </div>
@@ -305,7 +303,7 @@ const Usuarios = () => {
                 <span className="font-semibold">Advertencia:</span> este usuario es estudiante. Se eliminarán también su perfil y <span className="font-semibold">todos sus registros diarios</span>, incluyendo exámenes y firmas registradas.
               </div>
             )}
-            {(modalEliminar.rol === 'docente' || modalEliminar.rol === 'bacteriologo') && (
+            {modalEliminar.rol === 'docente' && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4 text-xs text-amber-700">
                 <span className="font-semibold">Advertencia:</span> este usuario figura como supervisor en registros diarios de estudiantes. Al eliminarlo, <span className="font-semibold">quedará desvinculado de esos registros</span> pero los registros no se borrarán.
               </div>

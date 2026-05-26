@@ -129,7 +129,7 @@ const FormularioEstudiante = ({ onSubmit, guardando, onCerrar, entidades, modoEd
           ))}
         </select>
         <p className="text-xs text-gray-400 mt-1">
-          Los docentes y bacteriólogos supervisores se asignan a la entidad, no al estudiante individualmente.
+          Los docentes supervisores se asignan a la entidad, no al estudiante individualmente.
         </p>
       </div>
 
