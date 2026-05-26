@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { obtenerCierreApi } from '../../services/cierreService';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
-const fmt = (iso, opts) => new Date(iso).toLocaleDateString('es-CO', opts);
+const fmt = (iso, opts) => new Date(iso.split('T')[0] + 'T12:00:00').toLocaleDateString('es-CO', opts);
 const fLarga = (iso) => fmt(iso, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 const fCorta = (iso) => fmt(iso, { day: '2-digit', month: 'short', year: 'numeric' });
 

@@ -13,21 +13,22 @@ import logoBact from '../../images/bact.jpeg';
 
 /* ─── Helpers de fechas ─── */
 const fmt = (iso) =>
-  new Date(iso).toLocaleDateString('es-CO', {
+  new Date(iso.split('T')[0] + 'T12:00:00').toLocaleDateString('es-CO', {
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
   });
 
 const fmtCorta = (iso) => {
   if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(iso.split('T')[0] + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const periodos = {
   semanal: () => {
     const hoy = new Date();
     const dow = hoy.getDay() === 0 ? 6 : hoy.getDay() - 1;
-    const lunes = new Date(hoy); lunes.setDate(hoy.getDate() - dow);
-    const domingo = new Date(lunes); domingo.setDate(lunes.getDate() + 6);
+    // Usar new Date(año, mes, dia) para fijar medianoche local y evitar desfase UTC
+    const lunes = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - dow);
+    const domingo = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - dow + 6);
     return { desde: lunes.toISOString().split('T')[0], hasta: domingo.toISOString().split('T')[0], label: 'Semana actual' };
   },
   mensual: () => {

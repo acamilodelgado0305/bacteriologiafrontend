@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 
 const formatFecha = (iso) =>
-  new Date(iso).toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' });
+  new Date(iso.split('T')[0] + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' });
 
 const Tarjeta = ({ icono, color, valor, label, cargando }) => (
   <div className="card">

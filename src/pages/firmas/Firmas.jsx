@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import SignaturePad from '../../components/ui/SignaturePad';
 
 const formatearFecha = (iso) =>
-  new Date(iso).toLocaleDateString('es-CO', {
+  new Date(iso.split('T')[0] + 'T12:00:00').toLocaleDateString('es-CO', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 

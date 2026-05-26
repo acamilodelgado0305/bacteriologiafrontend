@@ -4,7 +4,10 @@ import { miPerfilEstudianteApi, obtenerPorFechaApi, guardarRegistroApi } from '.
 import { useAuth } from '../../context/AuthContext';
 import SignaturePad from '../../components/ui/SignaturePad';
 
-const hoy = () => new Date().toISOString().split('T')[0];
+const hoy = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 const formatearFecha = (iso) =>
   new Date(iso + 'T12:00:00').toLocaleDateString('es-CO', {
