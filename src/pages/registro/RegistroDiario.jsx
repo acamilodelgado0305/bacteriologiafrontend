@@ -179,8 +179,10 @@ export default function RegistroDiario() {
   const examenes = perfil.entidad.examenes || [];
   const areas = [...new Set(examenes.map((e) => e.area || 'Sin área'))].sort();
   const yaFirmo = !!registroExistente?.firmaEstudiante;
-  const firmado = registroExistente?.firmado || (!!registroExistente?.firmaEstudiante && !!registroExistente?.firmaDocente);
-  const editable = !yaFirmo && !firmado;
+  const yaFirmoDocente = !!registroExistente?.firmaDocente;
+  const firmado = registroExistente?.firmado || (!!registroExistente?.firmaEstudiante && !!registroExistente?.firmaDocente && !!registroExistente?.firmaBacteriologo);
+  // Editable mientras el docente no haya firmado (aunque el estudiante ya haya firmado)
+  const editable = !yaFirmoDocente && !firmado;
 
   const personal = perfil.entidad.personal || [];
   const docentes = personal.filter((p) => p.usuario.rol === 'docente');
@@ -228,9 +230,15 @@ export default function RegistroDiario() {
             <span>✅</span><span>Registro completamente firmado</span>
           </div>
         )}
-        {yaFirmo && !firmado && !registroExistente?.firmaDocente && (
+        {yaFirmo && !yaFirmoDocente && !firmado && (
+          <div className="mt-3 flex items-center gap-2 text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2 border border-amber-200">
+            <span>✏️</span>
+            <span>Ya firmaste — puedes seguir editando hasta que el docente firme. Al guardar, tu firma anterior se reemplazará.</span>
+          </div>
+        )}
+        {yaFirmoDocente && !firmado && (
           <div className="mt-3 flex items-center gap-2 text-sm text-blue-700 bg-blue-50 rounded-lg px-3 py-2">
-            <span>✍️</span><span>Ya firmaste este registro — esperando la firma del docente</span>
+            <span>🔒</span><span>El docente ya firmó — este registro no puede modificarse</span>
           </div>
         )}
 
@@ -401,7 +409,7 @@ export default function RegistroDiario() {
                       Guardando...
                     </>
                   ) : (
-                    <>✍️ {registroExistente ? 'Actualizar y firmar' : 'Guardar y firmar'}</>
+                    <>✍️ {yaFirmo ? 'Guardar cambios y firmar de nuevo' : registroExistente ? 'Actualizar y firmar' : 'Guardar y firmar'}</>
                   )}
                 </button>
               </div>

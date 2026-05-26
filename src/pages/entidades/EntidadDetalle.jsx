@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useForm, useWatch } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import {
-  obtenerEntidadApi, crearExamenApi, actualizarExamenApi, importarExamenesApi,
+  obtenerEntidadApi, crearExamenApi, actualizarExamenApi, eliminarExamenApi, importarExamenesApi,
   agregarPersonalEntidadApi, eliminarPersonalEntidadApi,
   listarEntidadesApi, listarExamenesApi,
 } from '../../services/entidadService';
@@ -417,6 +417,8 @@ const EntidadDetalle = () => {
   const [modalExamen, setModalExamen] = useState(false);
   const [guardandoExamen, setGuardandoExamen] = useState(false);
   const formExamen = useForm();
+  const [examenEliminar, setExamenEliminar] = useState(null);
+  const [eliminandoExamen, setEliminandoExamen] = useState(false);
 
   /* ── Importar exámenes ── */
   const [modalImportar, setModalImportar] = useState(false);
@@ -511,6 +513,24 @@ const EntidadDetalle = () => {
       }));
     } catch {
       toast.error('Error al actualizar examen');
+    }
+  };
+
+  const onEliminarExamen = async () => {
+    if (!examenEliminar) return;
+    setEliminandoExamen(true);
+    try {
+      await eliminarExamenApi(id, examenEliminar.id);
+      setEntidad((prev) => ({
+        ...prev,
+        examenes: prev.examenes.filter((e) => e.id !== examenEliminar.id),
+      }));
+      toast.success('Examen eliminado');
+      setExamenEliminar(null);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al eliminar el examen');
+    } finally {
+      setEliminandoExamen(false);
     }
   };
 
@@ -780,6 +800,7 @@ const EntidadDetalle = () => {
                       <th className="text-left px-4 py-3 font-medium text-gray-600">Examen</th>
                       <th className="text-left px-4 py-3 font-medium text-gray-600">Área</th>
                       <th className="text-left px-4 py-3 font-medium text-gray-600">Estado</th>
+                      <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -801,6 +822,18 @@ const EntidadDetalle = () => {
                             }`}
                           >
                             {ex.activo ? 'Activo' : 'Inactivo'}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => setExamenEliminar(ex)}
+                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Eliminar examen"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                           </button>
                         </td>
                       </tr>
@@ -833,6 +866,41 @@ const EntidadDetalle = () => {
                 <Button type="submit" loading={guardandoExamen} className="flex-1">Crear examen o actividad</Button>
               </div>
             </form>
+          </Modal>
+
+          {/* Modal confirmar eliminar examen */}
+          <Modal
+            abierto={!!examenEliminar}
+            onCerrar={() => setExamenEliminar(null)}
+            titulo="Eliminar examen"
+          >
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                ¿Estás seguro que deseas eliminar{' '}
+                <span className="font-semibold text-gray-800">"{examenEliminar?.nombre}"</span>?
+              </p>
+              <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                ⚠️ Esta acción es permanente. Solo es posible si el examen no tiene registros asociados.
+              </p>
+              <div className="flex gap-3 pt-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setExamenEliminar(null)}
+                  disabled={eliminandoExamen}
+                >
+                  Cancelar
+                </Button>
+                <button
+                  onClick={onEliminarExamen}
+                  disabled={eliminandoExamen}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {eliminandoExamen ? 'Eliminando...' : 'Sí, eliminar'}
+                </button>
+              </div>
+            </div>
           </Modal>
 
           {/* Modal importar exámenes */}

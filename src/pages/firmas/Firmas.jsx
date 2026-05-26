@@ -12,7 +12,7 @@ const formatearFecha = (iso) =>
 const formatearFechaCorta = (iso) =>
   new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 
-const esCompleto = (r) => r.firmado || (!!r.firmaEstudiante && !!r.firmaDocente);
+const esCompleto = (r) => r.firmado || (!!r.firmaEstudiante && !!r.firmaDocente && !!r.firmaBacteriologo);
 
 const BadgeEstado = ({ firmado, firmaEstudiante, firmaDocente }) => {
   if (firmado || (firmaEstudiante && firmaDocente)) {
