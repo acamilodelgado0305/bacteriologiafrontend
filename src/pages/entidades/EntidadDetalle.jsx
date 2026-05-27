@@ -417,6 +417,9 @@ const EntidadDetalle = () => {
   const [modalExamen, setModalExamen] = useState(false);
   const [guardandoExamen, setGuardandoExamen] = useState(false);
   const formExamen = useForm();
+  const [examenEditar, setExamenEditar] = useState(null);
+  const [guardandoEditarExamen, setGuardandoEditarExamen] = useState(false);
+  const formEditarExamen = useForm();
   const [examenEliminar, setExamenEliminar] = useState(null);
   const [eliminandoExamen, setEliminandoExamen] = useState(false);
 
@@ -513,6 +516,31 @@ const EntidadDetalle = () => {
       }));
     } catch {
       toast.error('Error al actualizar examen');
+    }
+  };
+
+  const abrirEditarExamen = (examen) => {
+    setExamenEditar(examen);
+    formEditarExamen.reset({ nombre: examen.nombre, area: examen.area || '' });
+  };
+
+  const onEditarExamen = async (datos) => {
+    setGuardandoEditarExamen(true);
+    try {
+      const { data } = await actualizarExamenApi(id, examenEditar.id, {
+        nombre: datos.nombre,
+        area: datos.area || null,
+      });
+      setEntidad((prev) => ({
+        ...prev,
+        examenes: prev.examenes.map((e) => e.id === examenEditar.id ? data.data : e),
+      }));
+      toast.success('Examen actualizado');
+      setExamenEditar(null);
+    } catch (err) {
+      toast.error(err.response?.data?.mensaje || 'Error al actualizar el examen');
+    } finally {
+      setGuardandoEditarExamen(false);
     }
   };
 
@@ -825,16 +853,28 @@ const EntidadDetalle = () => {
                           </button>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => setExamenEliminar(ex)}
-                            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar examen"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          <div className="flex items-center gap-1 justify-end">
+                            <button
+                              onClick={() => abrirEditarExamen(ex)}
+                              className="p-1.5 text-gray-300 hover:text-up-blue hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Editar examen"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => setExamenEliminar(ex)}
+                              className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar examen"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -864,6 +904,41 @@ const EntidadDetalle = () => {
                   Cancelar
                 </Button>
                 <Button type="submit" loading={guardandoExamen} className="flex-1">Crear examen o actividad</Button>
+              </div>
+            </form>
+          </Modal>
+
+          {/* Modal editar examen */}
+          <Modal
+            abierto={!!examenEditar}
+            onCerrar={() => setExamenEditar(null)}
+            titulo="Editar examen o actividad"
+          >
+            <form onSubmit={formEditarExamen.handleSubmit(onEditarExamen)} className="space-y-4">
+              <div>
+                <label className="label">Categoría / Área</label>
+                <select className="input-field" {...formEditarExamen.register('area')}>
+                  <option value="">Seleccionar categoría</option>
+                  {AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <Input
+                label="Nombre del examen o actividad *"
+                error={formEditarExamen.formState.errors.nombre?.message}
+                {...formEditarExamen.register('nombre', { required: 'Requerido' })}
+              />
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => setExamenEditar(null)}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" loading={guardandoEditarExamen} className="flex-1">
+                  Guardar cambios
+                </Button>
               </div>
             </form>
           </Modal>
